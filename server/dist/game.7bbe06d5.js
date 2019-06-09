@@ -175,6 +175,7 @@ function (_Phaser$Scene) {
     key: "preload",
     value: function preload() {
       this.load.image('dot', 'dot.png');
+      this.load.image('candy', 'candy.png');
       this.load.tilemapTiledJSON('map', 'pacman-map.json');
       this.load.image('tiles', 'pacman-tiles.png');
       this.load.spritesheet('pacman', 'pacman.png', {
@@ -185,7 +186,8 @@ function (_Phaser$Scene) {
       this.dottile = 7;
       this.speed = 100;
       this.pacmanSize = 13;
-      this.threshold = 3.5;
+      this.threshold = 2.5;
+      this.dotCount = 0;
       this.marker = new Phaser.Geom.Point();
     }
   }, {
@@ -203,14 +205,22 @@ function (_Phaser$Scene) {
       this.pacman.body.setVelocityX(100);
       this.pacman.body.setSize(this.pacmanSize, this.pacmanSize);
       this.anims.create({
-        key: 'left',
+        key: 'moving',
         frames: this.anims.generateFrameNumbers('pacman', {
-          frames: [0, 1, 2, 1]
+          frames: [2, 1, 0, 1]
         }),
-        frameRate: 10,
+        frameRate: 16,
         repeat: -1
       });
-      this.pacman.anims.play('left');
+      this.anims.create({
+        key: 'stop',
+        frames: this.anims.generateFrameNumbers('pacman', {
+          frames: [1]
+        }),
+        frameRate: 10,
+        repeat: 1
+      });
+      this.pacman.anims.play('moving');
       this.currentDirection = Phaser.RIGHT;
       this.nextDirection = Phaser.RIGHT;
       this.input.keyboard.on('keydown', function (eventName, event) {
@@ -239,57 +249,30 @@ function (_Phaser$Scene) {
   }, {
     key: "canTurn",
     value: function canTurn() {
-      var x = this.pacman.x;
-      var y = this.pacman.y;
-      this.marker.x = this.map.worldToTileX(x);
-      this.marker.y = this.map.worldToTileY(y);
-
-      if (Math.abs(this.marker.x * 16.5 - x) < this.threshold && Math.abs(this.marker.y * 16.5 - y) < this.threshold) {}
-
       var tile;
 
       switch (this.nextDirection) {
         case Phaser.LEFT:
           tile = this.map.getTileAt(this.marker.x - 1, this.marker.y, true).index;
-
-          if (Math.abs(this.marker.x * 16.5 - x) > this.threshold) {
-            return false;
-          }
-
           break;
 
         case Phaser.RIGHT:
           tile = this.map.getTileAt(this.marker.x + 1, this.marker.y, true).index;
-
-          if (Math.abs(this.marker.x * 16.5 - x) > this.threshold) {
-            return false;
-          }
-
           break;
 
         case Phaser.UP:
           tile = this.map.getTileAt(this.marker.x, this.marker.y - 1, true).index;
-
-          if (Math.abs(this.marker.y * 16.5 - y) > this.threshold) {
-            return false;
-          }
-
           break;
 
         case Phaser.DOWN:
           tile = this.map.getTileAt(this.marker.x, this.marker.y + 1, true).index;
-
-          if (Math.abs(this.marker.y * 16.5 - y) > this.threshold) {
-            return false;
-          }
-
           break;
 
         default:
           console.log('invalid direction');
       }
 
-      return true;
+      return tile === this.safetile || tile === this.dottile;
     }
   }, {
     key: "updateDirection",
@@ -328,8 +311,32 @@ function (_Phaser$Scene) {
   }, {
     key: "update",
     value: function update() {
-      // if (this.nextDirection !== this.currentDirection && this.canTurn()) {
-      this.updateDirection(); // }
+      var pacmanX = this.pacman.x;
+      var pacmanY = this.pacman.y;
+      this.marker.x = this.map.worldToTileX(pacmanX);
+      this.marker.y = this.map.worldToTileY(pacmanY);
+      this.currentTile = this.map.getTileAt(this.marker.x, this.marker.y, true);
+
+      if (this.currentTile.index === this.dottile) {
+        this.dotCount++;
+        console.log(this.dotCount);
+        this.currentTile.index = this.safetile;
+      }
+
+      if (this.nextDirection === this.currentDirection && !this.canTurn()) {
+        if (this.pacman.anims.isPlaying) {
+          this.pacman.anims.stop();
+          this.pacman.anims.play('stop');
+        }
+      } else {
+        if (!this.pacman.anims.isPlaying) {
+          this.pacman.anims.play('moving');
+        }
+      }
+
+      if (this.nextDirection !== this.currentDirection && this.canTurn() && Math.abs(pacmanX - (this.marker.x * 16 + 8)) < this.threshold && Math.abs(pacmanY - (this.marker.y * 16 + 8)) < this.threshold) {
+        this.updateDirection();
+      }
     }
   }]);
 
@@ -378,7 +385,7 @@ var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var hostname = "" || location.hostname;
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-  var ws = new WebSocket(protocol + '://' + hostname + ':' + "45991" + '/');
+  var ws = new WebSocket(protocol + '://' + hostname + ':' + "37117" + '/');
 
   ws.onmessage = function (event) {
     checkedAssets = {};
