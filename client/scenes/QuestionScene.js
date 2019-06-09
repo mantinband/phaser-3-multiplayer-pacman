@@ -30,7 +30,7 @@ export class QuestionScene extends Phaser.Scene {
         this.distanceFromLeft = 480;
         this.text = this.add.text(this.distanceFromLeft, 50, '' , this.textStyle);
         this.i = 0;
-        this.delay = 1;
+        this.delay = 3;
         this.delayCount = 0;
         this.lettersPerLine = 25;
         this.answers = [QUESTIONS[this.questionIndex].correct_answer,
@@ -58,7 +58,6 @@ export class QuestionScene extends Phaser.Scene {
                     this.text.text += '\n';
                 }
                 if (this.question[this.i] === undefined) {
-                    this.scene.resume(CST.SCENES.GAME);
                     this.printingQuestion = false;
                     this.printingAnswer = 1;
                 }
@@ -68,6 +67,9 @@ export class QuestionScene extends Phaser.Scene {
                         270 + (this.printingAnswer-1)*(this.ghostHeight*3+5) -10, this.answers[this.printingAnswer-1], this.textStyle);
                 }
                 this.printingAnswer++;
+                if (this.printingAnswer === 40) {
+                    this.scene.resume(CST.SCENES.GAME);
+                }
             }
             this.delayCount = 0;
         }
