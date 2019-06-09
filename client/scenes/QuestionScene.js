@@ -5,8 +5,9 @@ export class QuestionScene extends Phaser.Scene {
     constructor() {
         super({key: CST.SCENES.QUESTION})
     }
+
     preload() {
-        this.ghosts= [ 'blinky', 'clyde', 'inky', 'pinky'];
+        this.ghosts=[ 'blinky', 'clyde', 'inky', 'pinky'];
 
         this.ghostHeight = 16;
         this.ghostWidth = 16;
@@ -48,6 +49,9 @@ export class QuestionScene extends Phaser.Scene {
             });
             this.add.sprite(this.distanceFromLeft + 20, 270 + i*(this.ghostHeight*3+5), this.ghosts[i], 0).anims.play(this.ghosts[i] + 'Animation').setScale(3);
         }
+        this.events.on('resume', function () {
+            alert('i have been resumed!');
+        });
     }
     update() {
         if (++this.delayCount === this.delay) {

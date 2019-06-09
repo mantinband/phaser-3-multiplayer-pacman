@@ -131,443 +131,7 @@ var CST = {
   }
 };
 exports.CST = CST;
-},{}],"scenes/GameScene.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.GameScene = void 0;
-
-var _CST = require("../CST");
-
-function _typeof(obj) { if (typeof Symbol === "function" && typeof Symbol.iterator === "symbol") { _typeof = function _typeof(obj) { return typeof obj; }; } else { _typeof = function _typeof(obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; }; } return _typeof(obj); }
-
-function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
-
-function _defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } }
-
-function _createClass(Constructor, protoProps, staticProps) { if (protoProps) _defineProperties(Constructor.prototype, protoProps); if (staticProps) _defineProperties(Constructor, staticProps); return Constructor; }
-
-function _possibleConstructorReturn(self, call) { if (call && (_typeof(call) === "object" || typeof call === "function")) { return call; } return _assertThisInitialized(self); }
-
-function _assertThisInitialized(self) { if (self === void 0) { throw new ReferenceError("this hasn't been initialised - super() hasn't been called"); } return self; }
-
-function _getPrototypeOf(o) { _getPrototypeOf = Object.setPrototypeOf ? Object.getPrototypeOf : function _getPrototypeOf(o) { return o.__proto__ || Object.getPrototypeOf(o); }; return _getPrototypeOf(o); }
-
-function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function"); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, writable: true, configurable: true } }); if (superClass) _setPrototypeOf(subClass, superClass); }
-
-function _setPrototypeOf(o, p) { _setPrototypeOf = Object.setPrototypeOf || function _setPrototypeOf(o, p) { o.__proto__ = p; return o; }; return _setPrototypeOf(o, p); }
-
-var GameScene =
-/*#__PURE__*/
-function (_Phaser$Scene) {
-  _inherits(GameScene, _Phaser$Scene);
-
-  function GameScene() {
-    _classCallCheck(this, GameScene);
-
-    return _possibleConstructorReturn(this, _getPrototypeOf(GameScene).call(this, {
-      key: _CST.CST.SCENES.GAME
-    }));
-  }
-
-  _createClass(GameScene, [{
-    key: "preload",
-    value: function preload() {
-      this.load.image('dot', 'dot.png');
-      this.load.image('candy', 'candy.png');
-      this.load.tilemapTiledJSON('map', 'pacman-map.json');
-      this.load.image('tiles', 'pacman-tiles.png');
-      this.load.spritesheet('pacman', 'pacman.png', {
-        frameWidth: 32,
-        frameHeight: 32
-      });
-      this.load.spritesheet('coin', 'coin.png', {
-        frameWidth: 44,
-        frameHeight: 40
-      });
-      this.ghosts = {
-        blinky: {
-          name: 'blinky',
-          startX: 13,
-          startY: 11
-        },
-        inky: {
-          name: 'inky',
-          startX: 11,
-          startY: 11
-        },
-        pinky: {
-          name: 'pinky',
-          startX: 13,
-          startY: 11
-        },
-        clyde: {
-          name: 'clyde',
-          startX: 15,
-          startY: 11
-        }
-      };
-      this.ghostHeight = 16;
-      this.ghostWidth = 16;
-
-      for (var ghost in this.ghosts) {
-        this.load.spritesheet(ghost, ghost + '.png', {
-          frameWidth: this.ghostWidth,
-          frameHeight: this.ghostHeight
-        });
-      }
-
-      this.safeTile = 14;
-      this.dotTile = 7;
-      this.ghostHouseTile = 83;
-      this.speed = 100;
-      this.pacmanSize = 12.5;
-      this.ghostSize = 1;
-      this.coinSize = 12;
-      this.threshold = 2.05;
-      this.dotCount = 0;
-      this.numTotalDots = 272;
-      this.marker = new Phaser.Geom.Point();
-      this.coins = {
-        upperLeft: {
-          x: 1,
-          y: 3,
-          direction: Phaser.LEFT
-        },
-        upperRight: {
-          x: 26,
-          y: 3,
-          direction: Phaser.LEFT
-        },
-        lowerRight: {
-          x: 26,
-          y: 22,
-          direction: Phaser.LEFT
-        },
-        lowerLeft: {
-          x: 1,
-          y: 22,
-          direction: Phaser.LEFT
-        }
-      };
-    }
-  }, {
-    key: "create",
-    value: function create() {
-      this.map = this.make.tilemap({
-        key: 'map'
-      });
-      var tileset = this.map.addTilesetImage('pacman-tiles', 'tiles');
-      this.layer = this.map.createDynamicLayer('Pacman', tileset);
-      this.pacman = this.add.sprite(14 * 16 + 8, 17 * 16 + 8, 'pacman', 2);
-      this.layer.setCollisionByExclusion([this.safeTile, this.dotTile]);
-      this.physics.add.collider(this.pacman, this.layer);
-      this.physics.world.enable(this.pacman);
-      this.pacman.body.setVelocityX(100);
-      this.pacman.body.setSize(this.pacmanSize, this.pacmanSize);
-      this.anims.create({
-        key: 'moving',
-        frames: this.anims.generateFrameNumbers('pacman', {
-          frames: [2, 1, 0, 1]
-        }),
-        frameRate: 16,
-        repeat: -1
-      });
-      this.anims.create({
-        key: 'stop',
-        frames: this.anims.generateFrameNumbers('pacman', {
-          frames: [1]
-        }),
-        frameRate: 10,
-        repeat: 1
-      });
-      this.pacman.anims.play('moving');
-      this.pacman.direction = Phaser.RIGHT;
-      this.pacman.nextDirection = Phaser.RIGHT;
-      this.input.keyboard.on('keydown', function (eventName, event) {
-        switch (eventName.key) {
-          case 'ArrowDown':
-            this.pacman.nextDirection = Phaser.DOWN;
-            break;
-
-          case 'ArrowUp':
-            this.pacman.nextDirection = Phaser.UP;
-            break;
-
-          case 'ArrowLeft':
-            this.pacman.nextDirection = Phaser.LEFT;
-            break;
-
-          case 'ArrowRight':
-            this.pacman.nextDirection = Phaser.RIGHT;
-            break;
-
-          default:
-            console.log('invalid button pressed: ' + eventName.key);
-        }
-      }, this);
-      this.anims.create({
-        key: 'coin',
-        frames: this.anims.generateFrameNumbers('coin', {
-          frames: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
-        }),
-        frameRate: 16,
-        repeat: -1
-      });
-      this.addCoins();
-      this.addCoinsCollideAction();
-      this.addGhosts();
-      this.addGhostsCollideAction();
-    }
-  }, {
-    key: "canTurn",
-    value: function canTurn(x, y, direction, isGhost) {
-      var tile;
-
-      switch (direction) {
-        case Phaser.LEFT:
-          tile = this.map.getTileAt(x - 1, y, true).index;
-          break;
-
-        case Phaser.RIGHT:
-          tile = this.map.getTileAt(x + 1, y, true).index;
-          break;
-
-        case Phaser.UP:
-          tile = this.map.getTileAt(x, y - 1, true).index;
-          break;
-
-        case Phaser.DOWN:
-          tile = this.map.getTileAt(x, y + 1, true).index;
-          break;
-
-        default:
-          console.log('invalid direction: ' + direction);
-      }
-
-      return tile === this.safeTile || tile === this.dotTile || isGhost && tile === this.ghostHouseTile;
-    }
-  }, {
-    key: "updateDirection",
-    value: function updateDirection(gameObject, isGhost) {
-      switch (gameObject.direction) {
-        case Phaser.LEFT:
-          if (isGhost) {
-            gameObject.anims.stop();
-            gameObject.anims.play(gameObject.name + 'Left');
-          } else {
-            gameObject.angle = 180;
-          }
-
-          gameObject.body.setVelocityX(-this.speed);
-          gameObject.body.setVelocityY(0);
-          break;
-
-        case Phaser.RIGHT:
-          if (isGhost) {
-            gameObject.anims.stop();
-            gameObject.anims.play(gameObject.name + 'Right');
-          } else {
-            gameObject.angle = 0;
-          }
-
-          gameObject.body.setVelocityX(this.speed);
-          gameObject.body.setVelocityY(0);
-          break;
-
-        case Phaser.UP:
-          if (isGhost) {
-            gameObject.anims.stop();
-            gameObject.anims.play(gameObject.name + 'Up');
-          } else {
-            gameObject.angle = 270;
-          }
-
-          gameObject.body.setVelocityX(0);
-          gameObject.body.setVelocityY(-this.speed);
-          break;
-
-        case Phaser.DOWN:
-          if (isGhost) {
-            gameObject.anims.stop();
-            gameObject.anims.play(gameObject.name + 'Down');
-          } else {
-            gameObject.angle = 90;
-          }
-
-          gameObject.body.setVelocityX(0);
-          gameObject.body.setVelocityY(this.speed);
-          break;
-
-        default:
-          console.log('updateDirection: invalid direction: ' + gameObject.direction);
-          ;
-      }
-    }
-  }, {
-    key: "update",
-    value: function update() {
-      var pacmanX = this.pacman.x;
-      var pacmanY = this.pacman.y;
-      this.marker.x = this.map.worldToTileX(pacmanX);
-      this.marker.y = this.map.worldToTileY(pacmanY);
-      var pacmanInCenterOfSquare = Math.abs(pacmanX - (this.marker.x * 16 + 8)) < this.threshold && Math.abs(pacmanY - (this.marker.y * 16 + 8)) < this.threshold;
-      var pacmanCanTurn = this.canTurn(this.marker.x, this.marker.y, this.pacman.nextDirection, false);
-      this.currentTile = this.map.getTileAt(this.marker.x, this.marker.y, true);
-
-      if (this.currentTile.index === this.dotTile) {
-        this.dotCount++;
-        this.currentTile.index = this.safeTile;
-
-        if (this.dotCount === this.numTotalDots) {
-          alert('you have won!');
-        }
-      }
-
-      if (this.pacman.nextDirection === this.pacman.direction && !pacmanCanTurn) {
-        if (this.pacman.anims.isPlaying) {
-          this.pacman.anims.stop();
-          this.pacman.anims.play('stop');
-        }
-      } else {
-        if (!this.pacman.anims.isPlaying) {
-          this.pacman.anims.play('moving');
-        }
-      }
-
-      if (this.pacman.nextDirection !== this.pacman.direction && pacmanCanTurn && pacmanInCenterOfSquare) {
-        this.pacman.direction = this.pacman.nextDirection;
-        this.updateDirection(this.pacman, false);
-      }
-
-      this.updateGhosts();
-    }
-  }, {
-    key: "addCoins",
-    value: function addCoins() {
-      for (var spot in this.coins) {
-        this.coins[spot]['coin'] = this.add.sprite(this.coins[spot].x * 16 + 8, this.coins[spot].y * 16 + 8, 'coin', 0);
-        this.physics.world.enable(this.coins[spot].coin);
-        this.coins[spot]['coin'].setScale(0.5);
-        this.coins[spot]['coin'].body.setSize(this.coinSize, this.coinSize);
-        this.coins[spot]['coin'].anims.play('coin');
-      }
-    }
-  }, {
-    key: "addCoinsCollideAction",
-    value: function addCoinsCollideAction() {
-      var _this = this;
-
-      var _loop = function _loop(spot) {
-        _this.physics.add.collider(_this.pacman, _this.coins[spot].coin, function () {
-          this.coins[spot].coin.destroy();
-          this.scene.launch(_CST.CST.SCENES.QUESTION);
-          this.scene.pause();
-        }, null, _this);
-      };
-
-      for (var spot in this.coins) {
-        _loop(spot);
-      }
-    }
-  }, {
-    key: "addGhosts",
-    value: function addGhosts() {
-      for (var ghost in this.ghosts) {
-        this.anims.create({
-          key: ghost + 'Right',
-          frames: this.anims.generateFrameNumbers(ghost, {
-            frames: [0, 1]
-          }),
-          frameRate: 10,
-          repeat: -1
-        });
-        this.anims.create({
-          key: ghost + 'Left',
-          frames: this.anims.generateFrameNumbers(ghost, {
-            frames: [2, 3]
-          }),
-          frameRate: 10,
-          repeat: -1
-        });
-        this.anims.create({
-          key: ghost + 'Up',
-          frames: this.anims.generateFrameNumbers(ghost, {
-            frames: [4, 5]
-          }),
-          frameRate: 10,
-          repeat: -1
-        });
-        this.anims.create({
-          key: ghost + 'Down',
-          frames: this.anims.generateFrameNumbers(ghost, {
-            frames: [6, 7]
-          }),
-          frameRate: 10,
-          repeat: -1
-        });
-        this.ghosts[ghost].ghost = this.add.sprite(this.ghosts[ghost].startX * 16 + 8, this.ghosts[ghost].startY * 16 + 8, ghost, 0);
-        this.physics.world.enable(this.ghosts[ghost].ghost);
-        this.ghosts[ghost].ghost.setScale(1.5);
-        this.ghosts[ghost].ghost.anims.play(ghost + 'Left');
-        this.ghosts[ghost].ghost.direction = Phaser.RIGHT;
-        this.physics.add.collider(this.ghosts[ghost].ghost, this.layer);
-        this.ghosts[ghost].ghost.body.setSize(this.ghostSize, this.ghostSize);
-        this.ghosts[ghost].ghost.body.setVelocityX(100);
-      }
-    }
-  }, {
-    key: "addGhostsCollideAction",
-    value: function addGhostsCollideAction() {
-      for (var ghost in this.ghosts) {
-        this.physics.add.collider(this.pacman, this.ghosts[ghost].ghost, function () {
-          alert("game over");
-        }, null, this);
-      }
-    }
-  }, {
-    key: "updateGhosts",
-    value: function updateGhosts() {
-      var _this2 = this;
-
-      for (var ghost in this.ghosts) {
-        var ghostX = this.ghosts[ghost].ghost.x;
-        var ghostY = this.ghosts[ghost].ghost.y;
-        this.ghosts[ghost].currentTileX = this.map.worldToTileX(ghostX);
-        this.ghosts[ghost].currentTileY = this.map.worldToTileY(ghostY);
-        var ghostInCenterOfSquare = Math.abs(ghostX - (this.ghosts[ghost].currentTileX * 16 + 8)) < this.threshold && Math.abs(ghostY - (this.ghosts[ghost].currentTileY * 16 + 8)) < this.threshold;
-        /* if reached wall*/
-
-        if (ghostInCenterOfSquare && !this.canTurn(this.ghosts[ghost].currentTileX, this.ghosts[ghost].currentTileY, this.ghosts[ghost].ghost.direction, true)) {
-          (function () {
-            var ghostAvailableDirections = [];
-            var direction = [Phaser.LEFT, Phaser.RIGHT, Phaser.UP, Phaser.DOWN];
-            direction.forEach(function (direction) {
-              if (this.canTurn(this.ghosts[ghost].currentTileX, this.ghosts[ghost].currentTileY, direction, true)) {
-                ghostAvailableDirections.push(direction);
-              }
-            }, _this2);
-            _this2.ghosts[ghost].ghost.direction = ghostAvailableDirections[_this2.randInt(0, ghostAvailableDirections.length)];
-
-            _this2.updateDirection(_this2.ghosts[ghost].ghost, true);
-          })();
-        }
-      }
-    }
-  }, {
-    key: "randInt",
-    value: function randInt(min, max) {
-      return Math.floor(Math.random() * (max - min) + min);
-    }
-  }]);
-
-  return GameScene;
-}(Phaser.Scene);
-
-exports.GameScene = GameScene;
-},{"../CST":"CST.js"}],"../assets/Questions.js":[function(require,module,exports) {
+},{}],"../assets/Questions.js":[function(require,module,exports) {
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -1016,6 +580,10 @@ function (_Phaser$Scene) {
         });
         this.add.sprite(this.distanceFromLeft + 20, 270 + i * (this.ghostHeight * 3 + 5), this.ghosts[i], 0).anims.play(this.ghosts[i] + 'Animation').setScale(3);
       }
+
+      this.events.on('resume', function () {
+        alert('i have been resumed!');
+      });
     }
   }, {
     key: "update",
@@ -1071,7 +639,515 @@ function (_Phaser$Scene) {
 }(Phaser.Scene);
 
 exports.QuestionScene = QuestionScene;
-},{"../CST":"CST.js","../../assets/Questions.js":"../assets/Questions.js"}],"game.js":[function(require,module,exports) {
+},{"../CST":"CST.js","../../assets/Questions.js":"../assets/Questions.js"}],"scenes/GameScene.js":[function(require,module,exports) {
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.GameScene = void 0;
+
+var _CST = require("../CST");
+
+var _QuestionScene = require("./QuestionScene");
+
+var _Questions = require("../../assets/Questions");
+
+function _typeof(obj) { if (typeof Symbol === "function" && typeof Symbol.iterator === "symbol") { _typeof = function _typeof(obj) { return typeof obj; }; } else { _typeof = function _typeof(obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; }; } return _typeof(obj); }
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+function _defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } }
+
+function _createClass(Constructor, protoProps, staticProps) { if (protoProps) _defineProperties(Constructor.prototype, protoProps); if (staticProps) _defineProperties(Constructor, staticProps); return Constructor; }
+
+function _possibleConstructorReturn(self, call) { if (call && (_typeof(call) === "object" || typeof call === "function")) { return call; } return _assertThisInitialized(self); }
+
+function _assertThisInitialized(self) { if (self === void 0) { throw new ReferenceError("this hasn't been initialised - super() hasn't been called"); } return self; }
+
+function _getPrototypeOf(o) { _getPrototypeOf = Object.setPrototypeOf ? Object.getPrototypeOf : function _getPrototypeOf(o) { return o.__proto__ || Object.getPrototypeOf(o); }; return _getPrototypeOf(o); }
+
+function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function"); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, writable: true, configurable: true } }); if (superClass) _setPrototypeOf(subClass, superClass); }
+
+function _setPrototypeOf(o, p) { _setPrototypeOf = Object.setPrototypeOf || function _setPrototypeOf(o, p) { o.__proto__ = p; return o; }; return _setPrototypeOf(o, p); }
+
+var GameScene =
+/*#__PURE__*/
+function (_Phaser$Scene) {
+  _inherits(GameScene, _Phaser$Scene);
+
+  function GameScene() {
+    _classCallCheck(this, GameScene);
+
+    return _possibleConstructorReturn(this, _getPrototypeOf(GameScene).call(this, {
+      key: _CST.CST.SCENES.GAME
+    }));
+  }
+
+  _createClass(GameScene, [{
+    key: "preload",
+    value: function preload() {
+      this.load.image('dot', 'dot.png');
+      this.load.image('candy', 'candy.png');
+      this.load.tilemapTiledJSON('map', 'pacman-map.json');
+      this.load.image('tiles', 'pacman-tiles.png');
+      this.load.spritesheet('pacman', 'pacman.png', {
+        frameWidth: 32,
+        frameHeight: 32
+      });
+      this.load.spritesheet('coin', 'coin.png', {
+        frameWidth: 44,
+        frameHeight: 40
+      });
+      this.ghosts = {
+        blinky: {
+          startX: 13,
+          startY: 11
+        },
+        inky: {
+          startX: 11,
+          startY: 11
+        },
+        pinky: {
+          startX: 13,
+          startY: 11
+        },
+        clyde: {
+          startX: 15,
+          startY: 11
+        }
+      };
+      this.ghostHeight = 16;
+      this.ghostWidth = 16;
+
+      for (var ghost in this.ghosts) {
+        this.load.spritesheet(ghost, ghost + '.png', {
+          frameWidth: this.ghostWidth,
+          frameHeight: this.ghostHeight
+        });
+      }
+
+      this.timeToEatAnswerDelay = 30;
+      this.timeToEatAnswerCounter = 0;
+      this.timeToEatAnswer = 0;
+      this.safeTile = 14;
+      this.dotTile = 7;
+      this.ghostHouseTile = 83;
+      this.speed = 100;
+      this.pacmanSize = 12.5;
+      this.ghostSize = 1;
+      this.coinSize = 12;
+      this.threshold = 2.05;
+      this.dotCount = 0;
+      this.numTotalDots = 272;
+      this.marker = new Phaser.Geom.Point();
+      this.coins = {
+        upperLeft: {
+          x: 1,
+          y: 3,
+          direction: Phaser.LEFT
+        },
+        upperRight: {
+          x: 26,
+          y: 3,
+          direction: Phaser.LEFT
+        },
+        lowerRight: {
+          x: 26,
+          y: 22,
+          direction: Phaser.LEFT
+        },
+        lowerLeft: {
+          x: 1,
+          y: 22,
+          direction: Phaser.LEFT
+        }
+      };
+    }
+  }, {
+    key: "create",
+    value: function create() {
+      this.map = this.make.tilemap({
+        key: 'map'
+      });
+      var tileset = this.map.addTilesetImage('pacman-tiles', 'tiles');
+      this.layer = this.map.createDynamicLayer('Pacman', tileset);
+      this.pacman = this.add.sprite(14 * 16 + 8, 17 * 16 + 8, 'pacman', 2);
+      this.layer.setCollisionByExclusion([this.safeTile, this.dotTile]);
+      this.physics.add.collider(this.pacman, this.layer);
+      this.physics.world.enable(this.pacman);
+      this.pacman.body.setVelocityX(100);
+      this.pacman.body.setSize(this.pacmanSize, this.pacmanSize);
+      this.anims.create({
+        key: 'moving',
+        frames: this.anims.generateFrameNumbers('pacman', {
+          frames: [2, 1, 0, 1]
+        }),
+        frameRate: 16,
+        repeat: -1
+      });
+      this.anims.create({
+        key: 'stop',
+        frames: this.anims.generateFrameNumbers('pacman', {
+          frames: [1]
+        }),
+        frameRate: 10,
+        repeat: 1
+      });
+      this.pacman.anims.play('moving');
+      this.pacman.direction = Phaser.RIGHT;
+      this.pacman.nextDirection = Phaser.RIGHT;
+      this.input.keyboard.on('keydown', function (eventName, event) {
+        switch (eventName.key) {
+          case 'ArrowDown':
+            this.pacman.nextDirection = Phaser.DOWN;
+            break;
+
+          case 'ArrowUp':
+            this.pacman.nextDirection = Phaser.UP;
+            break;
+
+          case 'ArrowLeft':
+            this.pacman.nextDirection = Phaser.LEFT;
+            break;
+
+          case 'ArrowRight':
+            this.pacman.nextDirection = Phaser.RIGHT;
+            break;
+
+          default:
+            console.log('invalid button pressed: ' + eventName.key);
+        }
+      }, this);
+      this.anims.create({
+        key: 'coin',
+        frames: this.anims.generateFrameNumbers('coin', {
+          frames: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+        }),
+        frameRate: 16,
+        repeat: -1
+      });
+      this.addCoins();
+      this.addCoinsCollideAction();
+      this.addGhosts();
+      this.addGhostsCollideAction();
+    }
+  }, {
+    key: "canTurn",
+    value: function canTurn(x, y, direction, isGhost) {
+      var tile;
+
+      switch (direction) {
+        case Phaser.LEFT:
+          tile = this.map.getTileAt(x - 1, y, true).index;
+          break;
+
+        case Phaser.RIGHT:
+          tile = this.map.getTileAt(x + 1, y, true).index;
+          break;
+
+        case Phaser.UP:
+          tile = this.map.getTileAt(x, y - 1, true).index;
+          break;
+
+        case Phaser.DOWN:
+          tile = this.map.getTileAt(x, y + 1, true).index;
+          break;
+
+        default:
+          console.log('invalid direction: ' + direction);
+      }
+
+      return tile === this.safeTile || tile === this.dotTile || isGhost && tile === this.ghostHouseTile;
+    }
+  }, {
+    key: "updateDirection",
+    value: function updateDirection(gameObject, isGhost) {
+      switch (gameObject.direction) {
+        case Phaser.LEFT:
+          if (isGhost) {
+            if (!this.timeToEatAnswer) {
+              gameObject.anims.stop();
+              gameObject.anims.play(gameObject.name + 'Left');
+            }
+          } else {
+            gameObject.angle = 180;
+          }
+
+          gameObject.body.setVelocityX(-this.speed);
+          gameObject.body.setVelocityY(0);
+          break;
+
+        case Phaser.RIGHT:
+          if (isGhost) {
+            if (!this.timeToEatAnswer) {
+              gameObject.anims.stop();
+              gameObject.anims.play(gameObject.name + 'Right');
+            }
+          } else {
+            gameObject.angle = 0;
+          }
+
+          gameObject.body.setVelocityX(this.speed);
+          gameObject.body.setVelocityY(0);
+          break;
+
+        case Phaser.UP:
+          if (isGhost) {
+            if (!this.timeToEatAnswer) {
+              gameObject.anims.stop();
+              gameObject.anims.play(gameObject.name + 'Up');
+            }
+          } else {
+            gameObject.angle = 270;
+          }
+
+          gameObject.body.setVelocityX(0);
+          gameObject.body.setVelocityY(-this.speed);
+          break;
+
+        case Phaser.DOWN:
+          if (isGhost) {
+            if (!this.timeToEatAnswer) {
+              gameObject.anims.stop();
+              gameObject.anims.play(gameObject.name + 'Down');
+            }
+          } else {
+            gameObject.angle = 90;
+          }
+
+          gameObject.body.setVelocityX(0);
+          gameObject.body.setVelocityY(this.speed);
+          break;
+
+        default:
+          console.log('updateDirection: invalid direction: ' + gameObject.direction);
+          ;
+      }
+    }
+  }, {
+    key: "update",
+    value: function update() {
+      if (this.timeToEatAnswer && ++this.timeToEatAnswerCounter === this.timeToEatAnswerDelay) {
+        if (--this.timeToEatAnswer === 0) {
+          this.scene.stop(_CST.CST.SCENES.QUESTION);
+        }
+
+        this.timeToEatAnswerCounter = 0;
+      }
+
+      var pacmanX = this.pacman.x;
+      var pacmanY = this.pacman.y;
+      this.marker.x = this.map.worldToTileX(pacmanX);
+      this.marker.y = this.map.worldToTileY(pacmanY);
+      var pacmanInCenterOfSquare = Math.abs(pacmanX - (this.marker.x * 16 + 8)) < this.threshold && Math.abs(pacmanY - (this.marker.y * 16 + 8)) < this.threshold;
+      var pacmanCanTurn = this.canTurn(this.marker.x, this.marker.y, this.pacman.nextDirection, false);
+      this.currentTile = this.map.getTileAt(this.marker.x, this.marker.y, true);
+
+      if (this.currentTile.index === this.dotTile) {
+        this.dotCount++;
+        this.currentTile.index = this.safeTile;
+
+        if (this.dotCount === this.numTotalDots) {
+          alert('you have won!');
+        }
+      }
+
+      if (this.pacman.nextDirection === this.pacman.direction && !pacmanCanTurn) {
+        if (this.pacman.anims.isPlaying) {
+          this.pacman.anims.stop();
+          this.pacman.anims.play('stop');
+        }
+      } else {
+        if (!this.pacman.anims.isPlaying) {
+          this.pacman.anims.play('moving');
+        }
+      }
+
+      if (this.pacman.nextDirection !== this.pacman.direction && pacmanCanTurn && pacmanInCenterOfSquare) {
+        this.pacman.direction = this.pacman.nextDirection;
+        this.updateDirection(this.pacman, false);
+      }
+
+      this.updateGhosts();
+    }
+  }, {
+    key: "addCoins",
+    value: function addCoins() {
+      for (var spot in this.coins) {
+        this.coins[spot]['coin'] = this.add.sprite(this.coins[spot].x * 16 + 8, this.coins[spot].y * 16 + 8, 'coin', 0);
+        this.physics.world.enable(this.coins[spot].coin);
+        this.coins[spot]['coin'].setScale(0.5);
+        this.coins[spot]['coin'].body.setSize(this.coinSize, this.coinSize);
+        this.coins[spot]['coin'].anims.play('coin');
+      }
+    }
+  }, {
+    key: "addCoinsCollideAction",
+    value: function addCoinsCollideAction() {
+      var _this = this;
+
+      var _loop = function _loop(spot) {
+        _this.physics.add.collider(_this.pacman, _this.coins[spot].coin, function () {
+          this.coins[spot].coin.destroy();
+          this.scene.launch(_CST.CST.SCENES.QUESTION);
+          this.scene.pause();
+          this.timeToEatAnswer = 10;
+
+          for (var ghost in this.ghosts) {
+            this.ghosts[ghost].ghost.anims.stop();
+            this.ghosts[ghost].ghost.anims.play(ghost + 'Blue');
+          }
+        }, null, _this);
+      };
+
+      for (var spot in this.coins) {
+        _loop(spot);
+      }
+    }
+  }, {
+    key: "addGhosts",
+    value: function addGhosts() {
+      for (var ghost in this.ghosts) {
+        console.log(ghost + 'Right');
+        this.anims.create({
+          key: ghost + 'Right',
+          frames: this.anims.generateFrameNumbers(ghost, {
+            frames: [0, 1]
+          }),
+          frameRate: 10,
+          repeat: -1
+        });
+        this.anims.create({
+          key: ghost + 'Left',
+          frames: this.anims.generateFrameNumbers(ghost, {
+            frames: [2, 3]
+          }),
+          frameRate: 10,
+          repeat: -1
+        });
+        this.anims.create({
+          key: ghost + 'Up',
+          frames: this.anims.generateFrameNumbers(ghost, {
+            frames: [4, 5]
+          }),
+          frameRate: 10,
+          repeat: -1
+        });
+        this.anims.create({
+          key: ghost + 'Down',
+          frames: this.anims.generateFrameNumbers(ghost, {
+            frames: [6, 7]
+          }),
+          frameRate: 10,
+          repeat: -1
+        });
+        this.anims.create({
+          key: ghost + 'Blue',
+          frames: this.anims.generateFrameNumbers(ghost, {
+            frames: [8, 9, 0, 1]
+          }),
+          frameRate: 10,
+          repeat: -1
+        });
+        this.anims.create({
+          key: ghost + 'Eaten',
+          frames: this.anims.generateFrameNumbers(ghost, {
+            frames: [10, 11, 12, 13, 14, 15]
+          }),
+          frameRate: 10,
+          repeat: -1
+        });
+        this.ghosts[ghost].ghost = this.add.sprite(this.ghosts[ghost].startX * 16 + 8, this.ghosts[ghost].startY * 16 + 8, ghost, 0);
+        this.ghosts[ghost].ghost.name = ghost;
+        this.physics.world.enable(this.ghosts[ghost].ghost);
+        this.ghosts[ghost].ghost.setScale(1.5);
+        this.ghosts[ghost].ghost.anims.play(ghost + 'Left');
+        this.ghosts[ghost].ghost.direction = Phaser.RIGHT;
+        this.physics.add.collider(this.ghosts[ghost].ghost, this.layer);
+        this.ghosts[ghost].ghost.body.setSize(this.ghostSize, this.ghostSize);
+        this.ghosts[ghost].ghost.body.setVelocityX(100);
+      }
+    }
+  }, {
+    key: "addGhostsCollideAction",
+    value: function addGhostsCollideAction() {
+      var _this2 = this;
+
+      var _loop2 = function _loop2(ghost) {
+        _this2.physics.add.collider(_this2.pacman, _this2.ghosts[ghost].ghost, function () {
+          if (this.timeToEatAnswer) {
+            var answers = _QuestionScene.QuestionScene.answers;
+            var correctAnswer = _Questions.QUESTIONS[_QuestionScene.QuestionScene.questionIndex].correct_answer;
+
+            switch (this.ghosts[ghost].ghost.name) {
+              case 'blinky':
+                alert(answers[0] === correctAnswer ? 'correct!' : "incorrect!");
+                break;
+
+              case 'clyde':
+                alert(answers[1] === correctAnswer ? 'correct!' : "incorrect!");
+                break;
+
+              case 'inky':
+                alert(answers[2] === correctAnswer ? 'correct!' : "incorrect!");
+                break;
+
+              case 'pinky':
+                alert(answers[3] === correctAnswer ? 'correct!' : "incorrect!");
+                break;
+            }
+          } else {
+            alert("game over");
+          }
+        }, null, _this2);
+      };
+
+      for (var ghost in this.ghosts) {
+        _loop2(ghost);
+      }
+    }
+  }, {
+    key: "updateGhosts",
+    value: function updateGhosts() {
+      var _this3 = this;
+
+      for (var ghost in this.ghosts) {
+        var ghostX = this.ghosts[ghost].ghost.x;
+        var ghostY = this.ghosts[ghost].ghost.y;
+        this.ghosts[ghost].currentTileX = this.map.worldToTileX(ghostX);
+        this.ghosts[ghost].currentTileY = this.map.worldToTileY(ghostY);
+        var ghostInCenterOfSquare = Math.abs(ghostX - (this.ghosts[ghost].currentTileX * 16 + 8)) < this.threshold && Math.abs(ghostY - (this.ghosts[ghost].currentTileY * 16 + 8)) < this.threshold;
+        /* if reached wall*/
+
+        if (ghostInCenterOfSquare && !this.canTurn(this.ghosts[ghost].currentTileX, this.ghosts[ghost].currentTileY, this.ghosts[ghost].ghost.direction, true)) {
+          (function () {
+            var ghostAvailableDirections = [];
+            var direction = [Phaser.LEFT, Phaser.RIGHT, Phaser.UP, Phaser.DOWN];
+            direction.forEach(function (direction) {
+              if (this.canTurn(this.ghosts[ghost].currentTileX, this.ghosts[ghost].currentTileY, direction, true)) {
+                ghostAvailableDirections.push(direction);
+              }
+            }, _this3);
+            _this3.ghosts[ghost].ghost.direction = ghostAvailableDirections[_this3.randInt(0, ghostAvailableDirections.length)];
+
+            _this3.updateDirection(_this3.ghosts[ghost].ghost, true);
+          })();
+        }
+      }
+    }
+  }, {
+    key: "randInt",
+    value: function randInt(min, max) {
+      return Math.floor(Math.random() * (max - min) + min);
+    }
+  }]);
+
+  return GameScene;
+}(Phaser.Scene);
+
+exports.GameScene = GameScene;
+},{"../CST":"CST.js","./QuestionScene":"scenes/QuestionScene.js","../../assets/Questions":"../assets/Questions.js"}],"game.js":[function(require,module,exports) {
 "use strict";
 
 var _GameScene = require("./scenes/GameScene.js");
@@ -1114,7 +1190,7 @@ var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var hostname = "" || location.hostname;
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-  var ws = new WebSocket(protocol + '://' + hostname + ':' + "36535" + '/');
+  var ws = new WebSocket(protocol + '://' + hostname + ':' + "34017" + '/');
 
   ws.onmessage = function (event) {
     checkedAssets = {};
