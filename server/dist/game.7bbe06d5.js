@@ -182,13 +182,36 @@ function (_Phaser$Scene) {
         frameWidth: 32,
         frameHeight: 32
       });
+      this.load.spritesheet('coin', 'coin.png', {
+        frameWidth: 44,
+        frameHeight: 40
+      });
       this.safetile = 14;
       this.dottile = 7;
       this.speed = 100;
-      this.pacmanSize = 13;
-      this.threshold = 2.5;
+      this.pacmanSize = 12;
+      this.threshold = 2.05;
       this.dotCount = 0;
+      this.numTotalDots = 272;
       this.marker = new Phaser.Geom.Point();
+      this.coins = {
+        upperLeft: {
+          x: 1,
+          y: 3
+        },
+        upperRight: {
+          x: 26,
+          y: 3
+        },
+        lowerRight: {
+          x: 26,
+          y: 22
+        },
+        lowerLeft: {
+          x: 1,
+          y: 22
+        }
+      };
     }
   }, {
     key: "create",
@@ -245,6 +268,16 @@ function (_Phaser$Scene) {
             console.log('invalid button pressed: ' + eventName.key);
         }
       }, this);
+      this.anims.create({
+        key: 'coin',
+        frames: this.anims.generateFrameNumbers('coin', {
+          frames: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+        }),
+        frameRate: 16,
+        repeat: -1
+      });
+      this.addCoins();
+      this.addCoinsCollideAction();
     }
   }, {
     key: "canTurn",
@@ -315,15 +348,21 @@ function (_Phaser$Scene) {
       var pacmanY = this.pacman.y;
       this.marker.x = this.map.worldToTileX(pacmanX);
       this.marker.y = this.map.worldToTileY(pacmanY);
+      var pacmanInCenterOfSquare = Math.abs(pacmanX - (this.marker.x * 16 + 8)) < this.threshold && Math.abs(pacmanY - (this.marker.y * 16 + 8)) < this.threshold;
+      var pacmanCanTurn = this.canTurn();
       this.currentTile = this.map.getTileAt(this.marker.x, this.marker.y, true);
 
       if (this.currentTile.index === this.dottile) {
         this.dotCount++;
-        console.log(this.dotCount);
         this.currentTile.index = this.safetile;
+        console.log(this.dotCount);
+
+        if (this.dotCount === this.numTotalDots) {
+          alert('you have won!');
+        }
       }
 
-      if (this.nextDirection === this.currentDirection && !this.canTurn()) {
+      if (this.nextDirection === this.currentDirection && !pacmanCanTurn) {
         if (this.pacman.anims.isPlaying) {
           this.pacman.anims.stop();
           this.pacman.anims.play('stop');
@@ -334,9 +373,50 @@ function (_Phaser$Scene) {
         }
       }
 
-      if (this.nextDirection !== this.currentDirection && this.canTurn() && Math.abs(pacmanX - (this.marker.x * 16 + 8)) < this.threshold && Math.abs(pacmanY - (this.marker.y * 16 + 8)) < this.threshold) {
+      if (this.nextDirection !== this.currentDirection && pacmanCanTurn && pacmanInCenterOfSquare) {
         this.updateDirection();
       }
+    }
+  }, {
+    key: "addCoins",
+    value: function addCoins() {
+      for (var spot in this.coins) {
+        this.coins[spot]['coin'] = this.add.sprite(this.coins[spot].x * 16 + 8, this.coins[spot].y * 16 + 8, 'coin', 0);
+        this.coins[spot]['coin'].setScale(0.5);
+        this.coins[spot]['coin'].anims.play('coin');
+      }
+    }
+  }, {
+    key: "addCoinsCollideAction",
+    value: function addCoinsCollideAction() {
+      var _this = this;
+
+      var _loop = function _loop(spot) {
+        _this.physics.world.enable(_this.coins[spot].coin);
+
+        _this.physics.add.collider(_this.pacman, _this.coins[spot].coin, function () {
+          this.coins[spot].coin.destroy();
+        }, null, _this);
+      };
+
+      for (var spot in this.coins) {
+        _loop(spot);
+      } // this.physics.world.enable(this.coins.lowerLeft.coin);
+      // this.physics.world.enable(this.coins.lowerRight.coin);
+      // this.physics.world.enable(this.coins.upperLeft.coin);
+      // this.physics.world.enable(this.coins.upperRight.coin);
+      // this.physics.add.collider(this.pacman, this.coins.lowerRight.coin, function () {
+      //     this.coins.lowerLeft.coin.destroy();
+      // }, null, this);
+      //
+      // this.physics.add.collider(this.pacman, this.coins.upperLeft.coin, function () {
+      //     this.coins.lowerLeft.coin.destroy();
+      // }, null, this);
+      //
+      // this.physics.add.collider(this.pacman, this.coins.upperRight.coin, function () {
+      //     this.coins.lowerLeft.coin.destroy();
+      // }, null, this);
+
     }
   }]);
 
@@ -385,7 +465,7 @@ var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var hostname = "" || location.hostname;
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-  var ws = new WebSocket(protocol + '://' + hostname + ':' + "37117" + '/');
+  var ws = new WebSocket(protocol + '://' + hostname + ':' + "37205" + '/');
 
   ws.onmessage = function (event) {
     checkedAssets = {};

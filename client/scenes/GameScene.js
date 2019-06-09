@@ -10,15 +10,36 @@ export class GameScene extends Phaser.Scene {
         this.load.tilemapTiledJSON('map', 'pacman-map.json');
         this.load.image('tiles', 'pacman-tiles.png');
         this.load.spritesheet('pacman', 'pacman.png', {frameWidth: 32, frameHeight: 32});
+        this.load.spritesheet('coin', 'coin.png', {frameWidth: 44, frameHeight: 40});
         this.safetile = 14;
         this.dottile = 7;
         this.speed = 100;
-        this.pacmanSize = 13;
-        this.threshold = 2.5;
+        this.pacmanSize = 12;
+        this.threshold = 2.05;
         this.dotCount = 0;
+        this.numTotalDots = 272;
         this.marker = new Phaser.Geom.Point();
 
+        this.coins = {
+            upperLeft : {
+                x : 1,
+                y : 3
+            },
+            upperRight : {
+                x : 26,
+                y : 3
+            },
+            lowerRight : {
+                x : 26,
+                y : 22
+            },
+            lowerLeft : {
+                x : 1,
+                y : 22
+            },
+        };
     }
+
     create() {
         this.map = this.make.tilemap({key:'map'});
         const tileset = this.map.addTilesetImage('pacman-tiles', 'tiles');
@@ -34,6 +55,7 @@ export class GameScene extends Phaser.Scene {
         this.pacman.body.setVelocityX(100);
         this.pacman.body.setSize(this.pacmanSize,this.pacmanSize);
 
+
         this.anims.create({
             key: 'moving',
             frames: this.anims.generateFrameNumbers('pacman', { frames: [2, 1, 0, 1]}),
@@ -46,6 +68,7 @@ export class GameScene extends Phaser.Scene {
             frameRate: 10,
             repeat: 1
         });
+
         this.pacman.anims.play('moving');
         this.currentDirection = Phaser.RIGHT;
         this.nextDirection = Phaser.RIGHT;
@@ -60,6 +83,14 @@ export class GameScene extends Phaser.Scene {
             }
         }, this);
 
+        this.anims.create({
+            key: 'coin',
+            frames: this.anims.generateFrameNumbers('coin', { frames: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]}),
+            frameRate: 16,
+            repeat: -1
+        });
+        this.addCoins();
+        this.addCoinsCollideAction();
     }
 
     canTurn() {
@@ -117,15 +148,24 @@ export class GameScene extends Phaser.Scene {
         this.marker.x = this.map.worldToTileX(pacmanX);
         this.marker.y = this.map.worldToTileY(pacmanY);
 
+        const pacmanInCenterOfSquare = (Math.abs(pacmanX - (this.marker.x*16+8)) < this.threshold) &&
+                                       (Math.abs(pacmanY - (this.marker.y*16+8)) < this.threshold);
+
+        const pacmanCanTurn = this.canTurn();
+
         this.currentTile = this.map.getTileAt(this.marker.x, this.marker.y, true);
 
         if (this.currentTile.index === this.dottile) {
             this.dotCount++;
-            console.log(this.dotCount);
             this.currentTile.index = this.safetile;
+            console.log(this.dotCount);
+
+            if (this.dotCount === this.numTotalDots) {
+                alert('you have won!');
+            }
         }
 
-        if (this.nextDirection === this.currentDirection && !this.canTurn()) {
+        if (this.nextDirection === this.currentDirection && !pacmanCanTurn) {
             if (this.pacman.anims.isPlaying) {
                 this.pacman.anims.stop();
                 this.pacman.anims.play('stop');
@@ -135,10 +175,42 @@ export class GameScene extends Phaser.Scene {
                 this.pacman.anims.play('moving');
             }
         }
-        if (this.nextDirection !== this.currentDirection && this.canTurn() &&
-            (Math.abs(pacmanX - (this.marker.x*16+8)) < this.threshold) &&
-            (Math.abs(pacmanY - (this.marker.y*16+8)) < this.threshold)){
+        if (this.nextDirection !== this.currentDirection && pacmanCanTurn && pacmanInCenterOfSquare) {
             this.updateDirection();
         }
+    }
+
+    addCoins() {
+        for (let spot in this.coins) {
+            this.coins[spot]['coin'] = this.add.sprite((this.coins[spot].x * 16) + 8, (this.coins[spot].y * 16) + 8, 'coin', 0);
+            this.coins[spot]['coin'].setScale(0.5);
+            this.coins[spot]['coin'].anims.play('coin');
+        }
+    }
+
+    addCoinsCollideAction() {
+        for (let spot in this.coins) {
+            this.physics.world.enable(this.coins[spot].coin);
+            this.physics.add.collider(this.pacman, this.coins[spot].coin, function () {
+                this.coins[spot].coin.destroy();
+            }, null, this);
+        }
+        // this.physics.world.enable(this.coins.lowerLeft.coin);
+        // this.physics.world.enable(this.coins.lowerRight.coin);
+        // this.physics.world.enable(this.coins.upperLeft.coin);
+        // this.physics.world.enable(this.coins.upperRight.coin);
+
+
+        // this.physics.add.collider(this.pacman, this.coins.lowerRight.coin, function () {
+        //     this.coins.lowerLeft.coin.destroy();
+        // }, null, this);
+        //
+        // this.physics.add.collider(this.pacman, this.coins.upperLeft.coin, function () {
+        //     this.coins.lowerLeft.coin.destroy();
+        // }, null, this);
+        //
+        // this.physics.add.collider(this.pacman, this.coins.upperRight.coin, function () {
+        //     this.coins.lowerLeft.coin.destroy();
+        // }, null, this);
     }
 }
