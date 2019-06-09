@@ -1,0 +1,11 @@
+{
+  "name": "pacman",
+  "version": "1.0.0",
+  "dependencies": {
+    "express": "^4.17.1"
+  },
+  "devDependencies": {
+    "bundler": "^0.8.0",
+    "parcel-bundler": "^1.12.3"
+  }
+}
