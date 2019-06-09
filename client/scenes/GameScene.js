@@ -1,4 +1,6 @@
 import {CST} from "../CST";
+import {QuestionScene} from "./QuestionScene";
+import {QUESTIONS} from "../../assets/Questions";
 
 export class GameScene extends Phaser.Scene {
     constructor() {
@@ -14,22 +16,18 @@ export class GameScene extends Phaser.Scene {
 
         this.ghosts = {
             blinky: {
-                name : 'blinky',
                 startX : 13,
                 startY : 11,
             },
             inky: {
-                name : 'inky',
                 startX : 11,
                 startY : 11,
             },
             pinky: {
-                name : 'pinky',
                 startX : 13,
                 startY : 11,
             },
             clyde: {
-                name : 'clyde',
                 startX : 15,
                 startY : 11,
             },
@@ -42,17 +40,20 @@ export class GameScene extends Phaser.Scene {
             this.load.spritesheet(ghost, ghost + '.png', {frameWidth: this.ghostWidth, frameHeight: this.ghostHeight});
         }
 
-        this.safeTile       = 14;
-        this.dotTile        = 7;
-        this.ghostHouseTile = 83;
-        this.speed          = 100;
-        this.pacmanSize     = 12.5;
-        this.ghostSize      = 1;
-        this.coinSize       = 12;
-        this.threshold      = 2.05;
-        this.dotCount       = 0;
-        this.numTotalDots   = 272;
-        this.marker         = new Phaser.Geom.Point();
+        this.timeToEatAnswerDelay   = 30;
+        this.timeToEatAnswerCounter = 0;
+        this.timeToEatAnswer        = 0;
+        this.safeTile        = 14;
+        this.dotTile         = 7;
+        this.ghostHouseTile  = 83;
+        this.speed           = 100;
+        this.pacmanSize      = 12.5;
+        this.ghostSize       = 1;
+        this.coinSize        = 12;
+        this.threshold       = 2.05;
+        this.dotCount        = 0;
+        this.numTotalDots    = 272;
+        this.marker          = new Phaser.Geom.Point();
 
         this.coins = {
             upperLeft : {
@@ -158,8 +159,10 @@ export class GameScene extends Phaser.Scene {
         switch (gameObject.direction) {
             case Phaser.LEFT:
                 if (isGhost) {
-                    gameObject.anims.stop();
-                    gameObject.anims.play(gameObject.name + 'Left');
+                    if (!this.timeToEatAnswer) {
+                        gameObject.anims.stop();
+                        gameObject.anims.play(gameObject.name + 'Left');
+                    }
                 } else {
                     gameObject.angle = 180;
                 }
@@ -168,8 +171,10 @@ export class GameScene extends Phaser.Scene {
                 break;
             case Phaser.RIGHT:
                 if (isGhost) {
-                    gameObject.anims.stop();
-                    gameObject.anims.play(gameObject.name + 'Right');
+                    if (!this.timeToEatAnswer) {
+                        gameObject.anims.stop();
+                        gameObject.anims.play(gameObject.name + 'Right');
+                    }
                 } else {
                     gameObject.angle = 0;
                 }
@@ -178,8 +183,10 @@ export class GameScene extends Phaser.Scene {
                 break;
             case Phaser.UP:
                 if (isGhost) {
-                    gameObject.anims.stop();
-                    gameObject.anims.play(gameObject.name + 'Up');
+                    if (!this.timeToEatAnswer) {
+                        gameObject.anims.stop();
+                        gameObject.anims.play(gameObject.name + 'Up');
+                    }
                 } else {
                     gameObject.angle = 270;
                 }
@@ -188,8 +195,10 @@ export class GameScene extends Phaser.Scene {
                 break;
             case Phaser.DOWN:
                 if (isGhost) {
-                    gameObject.anims.stop();
-                    gameObject.anims.play(gameObject.name + 'Down');
+                    if (!this.timeToEatAnswer) {
+                        gameObject.anims.stop();
+                        gameObject.anims.play(gameObject.name + 'Down');
+                    }
                 } else {
                     gameObject.angle = 90;
                 }
@@ -202,6 +211,13 @@ export class GameScene extends Phaser.Scene {
     }
 
     update() {
+        if (this.timeToEatAnswer && ++this.timeToEatAnswerCounter === this.timeToEatAnswerDelay) {
+            if (--this.timeToEatAnswer === 0) {
+                this.scene.stop(CST.SCENES.QUESTION);
+            }
+            this.timeToEatAnswerCounter = 0;
+        }
+
         const pacmanX = this.pacman.x;
         const pacmanY = this.pacman.y;
 
@@ -260,12 +276,18 @@ export class GameScene extends Phaser.Scene {
                 this.coins[spot].coin.destroy();
                 this.scene.launch(CST.SCENES.QUESTION);
                 this.scene.pause();
+                this.timeToEatAnswer = 10;
+                for (let ghost in this.ghosts) {
+                    this.ghosts[ghost].ghost.anims.stop();
+                    this.ghosts[ghost].ghost.anims.play(ghost + 'Blue');
+                }
             }, null, this);
         }
     }
 
     addGhosts() {
         for (let ghost in this.ghosts) {
+            console.log(ghost+'Right');
             this.anims.create({
                 key: ghost + 'Right',
                 frames: this.anims.generateFrameNumbers(ghost, { frames: [0,1]}),
@@ -290,7 +312,20 @@ export class GameScene extends Phaser.Scene {
                 frameRate: 10,
                 repeat: -1
             });
+            this.anims.create({
+                key: ghost + 'Blue',
+                frames: this.anims.generateFrameNumbers(ghost, { frames: [8,9,0,1]}),
+                frameRate: 10,
+                repeat: -1
+            });
+            this.anims.create({
+                key: ghost + 'Eaten',
+                frames: this.anims.generateFrameNumbers(ghost, { frames: [10, 11, 12, 13, 14, 15]}),
+                frameRate: 10,
+                repeat: -1
+            });
             this.ghosts[ghost].ghost = this.add.sprite(this.ghosts[ghost].startX*16+8, this.ghosts[ghost].startY*16+8, ghost, 0);
+            this.ghosts[ghost].ghost.name = ghost;
             this.physics.world.enable(this.ghosts[ghost].ghost);
             this.ghosts[ghost].ghost.setScale(1.5);
             this.ghosts[ghost].ghost.anims.play(ghost + 'Left');
@@ -304,7 +339,27 @@ export class GameScene extends Phaser.Scene {
     addGhostsCollideAction() {
         for (let ghost in this.ghosts) {
             this.physics.add.collider(this.pacman, this.ghosts[ghost].ghost, function () {
-                alert("game over");
+                if (this.timeToEatAnswer) {
+                    /* TODO: need to bring answer array, and correct answer from question scene */
+                    // const answers = QuestionScene.answers;
+                    // const correctAnswer = QUESTIONS[QuestionScene.questionIndex].correct_answer;
+                    // switch (this.ghosts[ghost].ghost.name) {
+                    //     case 'blinky':
+                    //         alert((answers[0] === correctAnswer) ? 'correct!' : "incorrect!");
+                    //         break;
+                    //     case 'clyde' :
+                    //         alert((answers[1] === correctAnswer) ? 'correct!' : "incorrect!");
+                    //         break;
+                    //     case 'inky'  :
+                    //         alert((answers[2] === correctAnswer) ? 'correct!' : "incorrect!");
+                    //         break;
+                    //     case 'pinky' :
+                    //         alert((answers[3] === correctAnswer) ? 'correct!' : "incorrect!");
+                    //         break;
+                    // }
+                } else {
+                    alert('game over');
+                }
             }, null, this);
         }
 
