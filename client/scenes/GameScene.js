@@ -11,14 +11,24 @@ export class GameScene extends Phaser.Scene {
         this.load.image('tiles', 'pacman-tiles.png');
         this.load.spritesheet('pacman', 'pacman.png', {frameWidth: 32, frameHeight: 32});
         this.load.spritesheet('coin', 'coin.png', {frameWidth: 44, frameHeight: 40});
-        this.safetile = 14;
-        this.dottile = 7;
-        this.speed = 100;
-        this.pacmanSize = 12;
-        this.threshold = 2.05;
-        this.dotCount = 0;
-        this.numTotalDots = 272;
-        this.marker = new Phaser.Geom.Point();
+
+        this.ghosts= [ 'blinky', 'clyde', 'inky', 'pinky'];
+
+        this.ghostHeight = 16;
+        this.ghostWidth = 16;
+        for (var i=0; i<this.ghosts.length; i++) {
+            this.load.spritesheet(this.ghosts[i], this.ghosts[i] + '.png', {frameWidth: this.ghostWidth, frameHeight: this.ghostHeight});
+        }
+
+        this.safetile       = 14;
+        this.dottile        = 7;
+        this.speed          = 100;
+        this.pacmanSize     = 12.5;
+        this.coinSize       = 12;
+        this.threshold      = 2.05;
+        this.dotCount       = 0;
+        this.numTotalDots   = 272;
+        this.marker         = new Phaser.Geom.Point();
 
         this.coins = {
             upperLeft : {
@@ -183,34 +193,20 @@ export class GameScene extends Phaser.Scene {
     addCoins() {
         for (let spot in this.coins) {
             this.coins[spot]['coin'] = this.add.sprite((this.coins[spot].x * 16) + 8, (this.coins[spot].y * 16) + 8, 'coin', 0);
+            this.physics.world.enable(this.coins[spot].coin);
             this.coins[spot]['coin'].setScale(0.5);
+            this.coins[spot]['coin'].body.setSize(this.coinSize, this.coinSize);
             this.coins[spot]['coin'].anims.play('coin');
         }
     }
 
     addCoinsCollideAction() {
         for (let spot in this.coins) {
-            this.physics.world.enable(this.coins[spot].coin);
             this.physics.add.collider(this.pacman, this.coins[spot].coin, function () {
                 this.coins[spot].coin.destroy();
+                this.scene.launch(CST.SCENES.QUESTION);
+                this.scene.pause();
             }, null, this);
         }
-        // this.physics.world.enable(this.coins.lowerLeft.coin);
-        // this.physics.world.enable(this.coins.lowerRight.coin);
-        // this.physics.world.enable(this.coins.upperLeft.coin);
-        // this.physics.world.enable(this.coins.upperRight.coin);
-
-
-        // this.physics.add.collider(this.pacman, this.coins.lowerRight.coin, function () {
-        //     this.coins.lowerLeft.coin.destroy();
-        // }, null, this);
-        //
-        // this.physics.add.collider(this.pacman, this.coins.upperLeft.coin, function () {
-        //     this.coins.lowerLeft.coin.destroy();
-        // }, null, this);
-        //
-        // this.physics.add.collider(this.pacman, this.coins.upperRight.coin, function () {
-        //     this.coins.lowerLeft.coin.destroy();
-        // }, null, this);
     }
 }

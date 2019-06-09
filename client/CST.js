@@ -1,5 +1,6 @@
 export const CST = {
     SCENES : {
-        GAME : "GAME"
+        GAME : "GAME",
+        QUESTION : "QUESTION"
     }
 };
