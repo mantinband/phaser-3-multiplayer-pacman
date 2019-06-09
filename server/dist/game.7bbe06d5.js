@@ -687,6 +687,7 @@ function (_Phaser$Scene) {
   _createClass(GameScene, [{
     key: "preload",
     value: function preload() {
+      this.initStaticConfigurations();
       this.load.image('dot', 'dot.png');
       this.load.image('candy', 'candy.png');
       this.load.tilemapTiledJSON('map', 'pacman-map.json');
@@ -699,26 +700,6 @@ function (_Phaser$Scene) {
         frameWidth: 44,
         frameHeight: 40
       });
-      this.ghosts = {
-        blinky: {
-          startX: 13,
-          startY: 11
-        },
-        inky: {
-          startX: 11,
-          startY: 11
-        },
-        pinky: {
-          startX: 13,
-          startY: 11
-        },
-        clyde: {
-          startX: 15,
-          startY: 11
-        }
-      };
-      this.ghostHeight = 16;
-      this.ghostWidth = 16;
 
       for (var ghost in this.ghosts) {
         this.load.spritesheet(ghost, ghost + '.png', {
@@ -726,43 +707,6 @@ function (_Phaser$Scene) {
           frameHeight: this.ghostHeight
         });
       }
-
-      this.timeToEatAnswerDelay = 30;
-      this.timeToEatAnswerCounter = 0;
-      this.timeToEatAnswer = 0;
-      this.safeTile = 14;
-      this.dotTile = 7;
-      this.ghostHouseTile = 83;
-      this.speed = 100;
-      this.pacmanSize = 12.5;
-      this.ghostSize = 1;
-      this.coinSize = 12;
-      this.threshold = 2.05;
-      this.dotCount = 0;
-      this.numTotalDots = 272;
-      this.marker = new Phaser.Geom.Point();
-      this.coins = {
-        upperLeft: {
-          x: 1,
-          y: 3,
-          direction: Phaser.LEFT
-        },
-        upperRight: {
-          x: 26,
-          y: 3,
-          direction: Phaser.LEFT
-        },
-        lowerRight: {
-          x: 26,
-          y: 22,
-          direction: Phaser.LEFT
-        },
-        lowerLeft: {
-          x: 1,
-          y: 22,
-          direction: Phaser.LEFT
-        }
-      };
     }
   }, {
     key: "create",
@@ -772,31 +716,7 @@ function (_Phaser$Scene) {
       });
       var tileset = this.map.addTilesetImage('pacman-tiles', 'tiles');
       this.layer = this.map.createDynamicLayer('Pacman', tileset);
-      this.pacman = this.add.sprite(14 * 16 + 8, 17 * 16 + 8, 'pacman', 2);
-      this.layer.setCollisionByExclusion([this.safeTile, this.dotTile]);
-      this.physics.add.collider(this.pacman, this.layer);
-      this.physics.world.enable(this.pacman);
-      this.pacman.body.setVelocityX(100);
-      this.pacman.body.setSize(this.pacmanSize, this.pacmanSize);
-      this.anims.create({
-        key: 'moving',
-        frames: this.anims.generateFrameNumbers('pacman', {
-          frames: [2, 1, 0, 1]
-        }),
-        frameRate: 16,
-        repeat: -1
-      });
-      this.anims.create({
-        key: 'stop',
-        frames: this.anims.generateFrameNumbers('pacman', {
-          frames: [1]
-        }),
-        frameRate: 10,
-        repeat: 1
-      });
-      this.pacman.anims.play('moving');
-      this.pacman.direction = Phaser.RIGHT;
-      this.pacman.nextDirection = Phaser.RIGHT;
+      this.initPacman();
       this.input.keyboard.on('keydown', function (eventName, event) {
         switch (eventName.key) {
           case 'ArrowDown':
@@ -819,14 +739,6 @@ function (_Phaser$Scene) {
             console.log('invalid button pressed: ' + eventName.key);
         }
       }, this);
-      this.anims.create({
-        key: 'coin',
-        frames: this.anims.generateFrameNumbers('coin', {
-          frames: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
-        }),
-        frameRate: 16,
-        repeat: -1
-      });
       this.addCoins();
       this.addCoinsCollideAction();
       this.addGhosts();
@@ -928,6 +840,7 @@ function (_Phaser$Scene) {
   }, {
     key: "update",
     value: function update() {
+      /* if game is in "cand eaten" time */
       if (this.timeToEatAnswer && ++this.timeToEatAnswerCounter === this.timeToEatAnswerDelay) {
         if (--this.timeToEatAnswer === 0) {
           this.scene.stop(_CST.CST.SCENES.QUESTION);
@@ -936,44 +849,21 @@ function (_Phaser$Scene) {
         this.timeToEatAnswerCounter = 0;
       }
 
-      var pacmanX = this.pacman.x;
-      var pacmanY = this.pacman.y;
-      this.marker.x = this.map.worldToTileX(pacmanX);
-      this.marker.y = this.map.worldToTileY(pacmanY);
-      var pacmanInCenterOfSquare = Math.abs(pacmanX - (this.marker.x * 16 + 8)) < this.threshold && Math.abs(pacmanY - (this.marker.y * 16 + 8)) < this.threshold;
-      var pacmanCanTurn = this.canTurn(this.marker.x, this.marker.y, this.pacman.nextDirection, false);
-      this.currentTile = this.map.getTileAt(this.marker.x, this.marker.y, true);
-
-      if (this.currentTile.index === this.dotTile) {
-        this.dotCount++;
-        this.currentTile.index = this.safeTile;
-
-        if (this.dotCount === this.numTotalDots) {
-          alert('you have won!');
-        }
-      }
-
-      if (this.pacman.nextDirection === this.pacman.direction && !pacmanCanTurn) {
-        if (this.pacman.anims.isPlaying) {
-          this.pacman.anims.stop();
-          this.pacman.anims.play('stop');
-        }
-      } else {
-        if (!this.pacman.anims.isPlaying) {
-          this.pacman.anims.play('moving');
-        }
-      }
-
-      if (this.pacman.nextDirection !== this.pacman.direction && pacmanCanTurn && pacmanInCenterOfSquare) {
-        this.pacman.direction = this.pacman.nextDirection;
-        this.updateDirection(this.pacman, false);
-      }
-
+      this.updatePacman();
       this.updateGhosts();
     }
   }, {
     key: "addCoins",
     value: function addCoins() {
+      this.anims.create({
+        key: 'coin',
+        frames: this.anims.generateFrameNumbers('coin', {
+          frames: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+        }),
+        frameRate: 16,
+        repeat: -1
+      });
+
       for (var spot in this.coins) {
         this.coins[spot]['coin'] = this.add.sprite(this.coins[spot].x * 16 + 8, this.coins[spot].y * 16 + 8, 'coin', 0);
         this.physics.world.enable(this.coins[spot].coin);
@@ -1072,45 +962,36 @@ function (_Phaser$Scene) {
   }, {
     key: "addGhostsCollideAction",
     value: function addGhostsCollideAction() {
-      var _this2 = this;
-
-      var _loop2 = function _loop2(ghost) {
-        _this2.physics.add.collider(_this2.pacman, _this2.ghosts[ghost].ghost, function () {
-          if (this.timeToEatAnswer) {
-            var answers = _QuestionScene.QuestionScene.answers;
-            var correctAnswer = _Questions.QUESTIONS[_QuestionScene.QuestionScene.questionIndex].correct_answer;
-
-            switch (this.ghosts[ghost].ghost.name) {
-              case 'blinky':
-                alert(answers[0] === correctAnswer ? 'correct!' : "incorrect!");
-                break;
-
-              case 'clyde':
-                alert(answers[1] === correctAnswer ? 'correct!' : "incorrect!");
-                break;
-
-              case 'inky':
-                alert(answers[2] === correctAnswer ? 'correct!' : "incorrect!");
-                break;
-
-              case 'pinky':
-                alert(answers[3] === correctAnswer ? 'correct!' : "incorrect!");
-                break;
-            }
-          } else {
-            alert("game over");
-          }
-        }, null, _this2);
-      };
-
       for (var ghost in this.ghosts) {
-        _loop2(ghost);
+        this.physics.add.collider(this.pacman, this.ghosts[ghost].ghost, function () {
+          if (this.timeToEatAnswer) {
+            /* TODO: need to bring answer array, and correct answer from question scene */
+            // const answers = QuestionScene.answers;
+            // const correctAnswer = QUESTIONS[QuestionScene.questionIndex].correct_answer;
+            // switch (this.ghosts[ghost].ghost.name) {
+            //     case 'blinky':
+            //         alert((answers[0] === correctAnswer) ? 'correct!' : "incorrect!");
+            //         break;
+            //     case 'clyde' :
+            //         alert((answers[1] === correctAnswer) ? 'correct!' : "incorrect!");
+            //         break;
+            //     case 'inky'  :
+            //         alert((answers[2] === correctAnswer) ? 'correct!' : "incorrect!");
+            //         break;
+            //     case 'pinky' :
+            //         alert((answers[3] === correctAnswer) ? 'correct!' : "incorrect!");
+            //         break;
+            // }
+          } else {
+            alert('game over');
+          }
+        }, null, this);
       }
     }
   }, {
     key: "updateGhosts",
     value: function updateGhosts() {
-      var _this3 = this;
+      var _this2 = this;
 
       for (var ghost in this.ghosts) {
         var ghostX = this.ghosts[ghost].ghost.x;
@@ -1128,10 +1009,10 @@ function (_Phaser$Scene) {
               if (this.canTurn(this.ghosts[ghost].currentTileX, this.ghosts[ghost].currentTileY, direction, true)) {
                 ghostAvailableDirections.push(direction);
               }
-            }, _this3);
-            _this3.ghosts[ghost].ghost.direction = ghostAvailableDirections[_this3.randInt(0, ghostAvailableDirections.length)];
+            }, _this2);
+            _this2.ghosts[ghost].ghost.direction = ghostAvailableDirections[_this2.randInt(0, ghostAvailableDirections.length)];
 
-            _this3.updateDirection(_this3.ghosts[ghost].ghost, true);
+            _this2.updateDirection(_this2.ghosts[ghost].ghost, true);
           })();
         }
       }
@@ -1140,6 +1021,135 @@ function (_Phaser$Scene) {
     key: "randInt",
     value: function randInt(min, max) {
       return Math.floor(Math.random() * (max - min) + min);
+    }
+  }, {
+    key: "initStaticConfigurations",
+    value: function initStaticConfigurations() {
+      this.ghosts = {
+        blinky: {
+          startX: 13,
+          startY: 11
+        },
+        inky: {
+          startX: 11,
+          startY: 11
+        },
+        pinky: {
+          startX: 13,
+          startY: 11
+        },
+        clyde: {
+          startX: 15,
+          startY: 11
+        }
+      };
+      this.coins = {
+        upperLeft: {
+          x: 1,
+          y: 3,
+          direction: Phaser.LEFT
+        },
+        upperRight: {
+          x: 26,
+          y: 3,
+          direction: Phaser.LEFT
+        },
+        lowerRight: {
+          x: 26,
+          y: 22,
+          direction: Phaser.LEFT
+        },
+        lowerLeft: {
+          x: 1,
+          y: 22,
+          direction: Phaser.LEFT
+        }
+      };
+      this.ghostHeight = 16;
+      this.ghostWidth = 16;
+      this.timeToEatAnswerDelay = 30;
+      this.timeToEatAnswerCounter = 0;
+      this.timeToEatAnswer = 0;
+      this.safeTile = 14;
+      this.dotTile = 7;
+      this.ghostHouseTile = 83;
+      this.speed = 100;
+      this.pacmanSize = 12.5;
+      this.ghostSize = 1;
+      this.coinSize = 12;
+      this.threshold = 2.05;
+      this.dotCount = 0;
+      this.numTotalDots = 272;
+      this.marker = new Phaser.Geom.Point();
+    }
+  }, {
+    key: "initPacman",
+    value: function initPacman() {
+      this.pacman = this.add.sprite(14 * 16 + 8, 17 * 16 + 8, 'pacman', 2);
+      /* set collision for all tiles besides dots and empty tiles */
+
+      this.layer.setCollisionByExclusion([this.safeTile, this.dotTile]);
+      /* set collision between pacman and the layer */
+
+      this.physics.add.collider(this.pacman, this.layer);
+      this.physics.world.enable(this.pacman);
+      this.pacman.body.setVelocityX(100);
+      this.pacman.body.setSize(this.pacmanSize, this.pacmanSize);
+      this.anims.create({
+        key: 'moving',
+        frames: this.anims.generateFrameNumbers('pacman', {
+          frames: [2, 1, 0, 1]
+        }),
+        frameRate: 16,
+        repeat: -1
+      });
+      this.anims.create({
+        key: 'stop',
+        frames: this.anims.generateFrameNumbers('pacman', {
+          frames: [1]
+        }),
+        frameRate: 10,
+        repeat: 1
+      });
+      this.pacman.anims.play('moving');
+      this.pacman.direction = Phaser.RIGHT;
+      this.pacman.nextDirection = Phaser.RIGHT;
+    }
+  }, {
+    key: "updatePacman",
+    value: function updatePacman() {
+      var pacmanX = this.pacman.x;
+      var pacmanY = this.pacman.y;
+      this.marker.x = this.map.worldToTileX(pacmanX);
+      this.marker.y = this.map.worldToTileY(pacmanY);
+      var pacmanInCenterOfSquare = Math.abs(pacmanX - (this.marker.x * 16 + 8)) < this.threshold && Math.abs(pacmanY - (this.marker.y * 16 + 8)) < this.threshold;
+      var pacmanCanTurn = this.canTurn(this.marker.x, this.marker.y, this.pacman.nextDirection, false);
+      this.currentTile = this.map.getTileAt(this.marker.x, this.marker.y, true);
+
+      if (this.currentTile.index === this.dotTile) {
+        this.dotCount++;
+        this.currentTile.index = this.safeTile;
+
+        if (this.dotCount === this.numTotalDots) {
+          alert('you have won!');
+        }
+      }
+
+      if (this.pacman.nextDirection === this.pacman.direction && !pacmanCanTurn) {
+        if (this.pacman.anims.isPlaying) {
+          this.pacman.anims.stop();
+          this.pacman.anims.play('stop');
+        }
+      } else {
+        if (!this.pacman.anims.isPlaying) {
+          this.pacman.anims.play('moving');
+        }
+      }
+
+      if (this.pacman.nextDirection !== this.pacman.direction && pacmanCanTurn && pacmanInCenterOfSquare) {
+        this.pacman.direction = this.pacman.nextDirection;
+        this.updateDirection(this.pacman, false);
+      }
     }
   }]);
 
@@ -1190,7 +1200,7 @@ var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var hostname = "" || location.hostname;
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-  var ws = new WebSocket(protocol + '://' + hostname + ':' + "34017" + '/');
+  var ws = new WebSocket(protocol + '://' + hostname + ':' + "36639" + '/');
 
   ws.onmessage = function (event) {
     checkedAssets = {};

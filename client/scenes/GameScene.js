@@ -7,6 +7,8 @@ export class GameScene extends Phaser.Scene {
         super({key: CST.SCENES.GAME })
     }
     preload() {
+        this.initStaticConfigurations();
+
         this.load.image('dot', 'dot.png');
         this.load.image('candy', 'candy.png');
         this.load.tilemapTiledJSON('map', 'pacman-map.json');
@@ -14,69 +16,10 @@ export class GameScene extends Phaser.Scene {
         this.load.spritesheet('pacman', 'pacman.png', {frameWidth: 32, frameHeight: 32});
         this.load.spritesheet('coin', 'coin.png', {frameWidth: 44, frameHeight: 40});
 
-        this.ghosts = {
-            blinky: {
-                startX : 13,
-                startY : 11,
-            },
-            inky: {
-                startX : 11,
-                startY : 11,
-            },
-            pinky: {
-                startX : 13,
-                startY : 11,
-            },
-            clyde: {
-                startX : 15,
-                startY : 11,
-            },
-        };
-
-        this.ghostHeight = 16;
-        this.ghostWidth = 16;
-
         for (let ghost in this.ghosts) {
             this.load.spritesheet(ghost, ghost + '.png', {frameWidth: this.ghostWidth, frameHeight: this.ghostHeight});
         }
 
-        this.timeToEatAnswerDelay   = 30;
-        this.timeToEatAnswerCounter = 0;
-        this.timeToEatAnswer        = 0;
-        this.safeTile        = 14;
-        this.dotTile         = 7;
-        this.ghostHouseTile  = 83;
-        this.speed           = 100;
-        this.pacmanSize      = 12.5;
-        this.ghostSize       = 1;
-        this.coinSize        = 12;
-        this.threshold       = 2.05;
-        this.dotCount        = 0;
-        this.numTotalDots    = 272;
-        this.marker          = new Phaser.Geom.Point();
-
-        this.coins = {
-            upperLeft : {
-                x : 1,
-                y : 3,
-                direction : Phaser.LEFT,
-            },
-            upperRight : {
-                x : 26,
-                y : 3,
-                direction : Phaser.LEFT,
-            },
-            lowerRight : {
-                x : 26,
-                y : 22,
-                direction : Phaser.LEFT,
-            },
-            lowerLeft : {
-                x : 1,
-                y : 22,
-                direction : Phaser.LEFT,
-            },
-        };
     }
 
     create() {
@@ -84,33 +27,7 @@ export class GameScene extends Phaser.Scene {
         const tileset = this.map.addTilesetImage('pacman-tiles', 'tiles');
         this.layer = this.map.createDynamicLayer('Pacman', tileset);
 
-        this.pacman = this.add.sprite((14 * 16) + 8, (17 * 16) + 8, 'pacman', 2);
-
-        this.layer.setCollisionByExclusion([this.safeTile,this.dotTile]);
-
-        this.physics.add.collider(this.pacman, this.layer);
-
-        this.physics.world.enable(this.pacman);
-        this.pacman.body.setVelocityX(100);
-        this.pacman.body.setSize(this.pacmanSize,this.pacmanSize);
-
-
-        this.anims.create({
-            key: 'moving',
-            frames: this.anims.generateFrameNumbers('pacman', { frames: [2, 1, 0, 1]}),
-            frameRate: 16,
-            repeat: -1
-        });
-        this.anims.create({
-            key: 'stop',
-            frames: this.anims.generateFrameNumbers('pacman', { frames: [1]}),
-            frameRate: 10,
-            repeat: 1
-        });
-
-        this.pacman.anims.play('moving');
-        this.pacman.direction = Phaser.RIGHT;
-        this.pacman.nextDirection = Phaser.RIGHT;
+        this.initPacman();
 
         this.input.keyboard.on('keydown', function (eventName, event) {
             switch (eventName.key) {
@@ -122,12 +39,6 @@ export class GameScene extends Phaser.Scene {
             }
         }, this);
 
-        this.anims.create({
-            key: 'coin',
-            frames: this.anims.generateFrameNumbers('coin', { frames: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]}),
-            frameRate: 16,
-            repeat: -1
-        });
         this.addCoins();
         this.addCoinsCollideAction();
         this.addGhosts();
@@ -211,6 +122,7 @@ export class GameScene extends Phaser.Scene {
     }
 
     update() {
+        /* if game is in "cand eaten" time */
         if (this.timeToEatAnswer && ++this.timeToEatAnswerCounter === this.timeToEatAnswerDelay) {
             if (--this.timeToEatAnswer === 0) {
                 this.scene.stop(CST.SCENES.QUESTION);
@@ -218,49 +130,17 @@ export class GameScene extends Phaser.Scene {
             this.timeToEatAnswerCounter = 0;
         }
 
-        const pacmanX = this.pacman.x;
-        const pacmanY = this.pacman.y;
-
-        this.marker.x = this.map.worldToTileX(pacmanX);
-        this.marker.y = this.map.worldToTileY(pacmanY);
-
-        const pacmanInCenterOfSquare = (Math.abs(pacmanX - (this.marker.x*16+8)) < this.threshold) &&
-                                       (Math.abs(pacmanY - (this.marker.y*16+8)) < this.threshold);
-
-        const pacmanCanTurn = this.canTurn(this.marker.x,
-                                           this.marker.y,
-                                           this.pacman.nextDirection,
-                                           false);
-
-        this.currentTile = this.map.getTileAt(this.marker.x, this.marker.y, true);
-
-        if (this.currentTile.index === this.dotTile) {
-            this.dotCount++;
-            this.currentTile.index = this.safeTile;
-
-            if (this.dotCount === this.numTotalDots) {
-                alert('you have won!');
-            }
-        }
-
-        if (this.pacman.nextDirection === this.pacman.direction && !pacmanCanTurn) {
-            if (this.pacman.anims.isPlaying) {
-                this.pacman.anims.stop();
-                this.pacman.anims.play('stop');
-            }
-        } else {
-            if (!this.pacman.anims.isPlaying) {
-                this.pacman.anims.play('moving');
-            }
-        }
-        if (this.pacman.nextDirection !== this.pacman.direction && pacmanCanTurn && pacmanInCenterOfSquare) {
-            this.pacman.direction = this.pacman.nextDirection;
-            this.updateDirection(this.pacman, false);
-        }
+        this.updatePacman();
         this.updateGhosts();
     }
 
     addCoins() {
+        this.anims.create({
+            key: 'coin',
+            frames: this.anims.generateFrameNumbers('coin', { frames: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]}),
+            frameRate: 16,
+            repeat: -1
+        });
         for (let spot in this.coins) {
             this.coins[spot]['coin'] = this.add.sprite((this.coins[spot].x * 16) + 8, (this.coins[spot].y * 16) + 8, 'coin', 0);
             this.physics.world.enable(this.coins[spot].coin);
@@ -396,5 +276,141 @@ export class GameScene extends Phaser.Scene {
 
     randInt(min, max) {
         return Math.floor(Math.random()*(max-min)+min);
+    }
+
+    initStaticConfigurations() {
+
+        this.ghosts = {
+            blinky: {
+                startX : 13,
+                startY : 11,
+            },
+            inky: {
+                startX : 11,
+                startY : 11,
+            },
+            pinky: {
+                startX : 13,
+                startY : 11,
+            },
+            clyde: {
+                startX : 15,
+                startY : 11,
+            },
+        };
+
+        this.coins = {
+            upperLeft : {
+                x : 1,
+                y : 3,
+                direction : Phaser.LEFT,
+            },
+            upperRight : {
+                x : 26,
+                y : 3,
+                direction : Phaser.LEFT,
+            },
+            lowerRight : {
+                x : 26,
+                y : 22,
+                direction : Phaser.LEFT,
+            },
+            lowerLeft : {
+                x : 1,
+                y : 22,
+                direction : Phaser.LEFT,
+            },
+        };
+
+        this.ghostHeight = 16;
+        this.ghostWidth = 16;
+        this.timeToEatAnswerDelay   = 30;
+        this.timeToEatAnswerCounter = 0;
+        this.timeToEatAnswer        = 0;
+        this.safeTile        = 14;
+        this.dotTile         = 7;
+        this.ghostHouseTile  = 83;
+        this.speed           = 100;
+        this.pacmanSize      = 12.5;
+        this.ghostSize       = 1;
+        this.coinSize        = 12;
+        this.threshold       = 2.05;
+        this.dotCount        = 0;
+        this.numTotalDots    = 272;
+        this.marker          = new Phaser.Geom.Point();
+    }
+
+    initPacman() {
+        this.pacman = this.add.sprite((14 * 16) + 8, (17 * 16) + 8, 'pacman', 2);
+
+        /* set collision for all tiles besides dots and empty tiles */
+        this.layer.setCollisionByExclusion([this.safeTile,this.dotTile]);
+
+        /* set collision between pacman and the layer */
+        this.physics.add.collider(this.pacman, this.layer);
+
+        this.physics.world.enable(this.pacman);
+        this.pacman.body.setVelocityX(100);
+        this.pacman.body.setSize(this.pacmanSize,this.pacmanSize);
+
+
+        this.anims.create({
+            key: 'moving',
+            frames: this.anims.generateFrameNumbers('pacman', { frames: [2, 1, 0, 1]}),
+            frameRate: 16,
+            repeat: -1
+        });
+        this.anims.create({
+            key: 'stop',
+            frames: this.anims.generateFrameNumbers('pacman', { frames: [1]}),
+            frameRate: 10,
+            repeat: 1
+        });
+
+        this.pacman.anims.play('moving');
+        this.pacman.direction     = Phaser.RIGHT;
+        this.pacman.nextDirection = Phaser.RIGHT;
+    }
+
+    updatePacman() {
+        const pacmanX = this.pacman.x;
+        const pacmanY = this.pacman.y;
+
+        this.marker.x = this.map.worldToTileX(pacmanX);
+        this.marker.y = this.map.worldToTileY(pacmanY);
+
+        const pacmanInCenterOfSquare = (Math.abs(pacmanX - (this.marker.x*16+8)) < this.threshold) &&
+            (Math.abs(pacmanY - (this.marker.y*16+8)) < this.threshold);
+
+        const pacmanCanTurn = this.canTurn(this.marker.x,
+            this.marker.y,
+            this.pacman.nextDirection,
+            false);
+
+        this.currentTile = this.map.getTileAt(this.marker.x, this.marker.y, true);
+
+        if (this.currentTile.index === this.dotTile) {
+            this.dotCount++;
+            this.currentTile.index = this.safeTile;
+
+            if (this.dotCount === this.numTotalDots) {
+                alert('you have won!');
+            }
+        }
+
+        if (this.pacman.nextDirection === this.pacman.direction && !pacmanCanTurn) {
+            if (this.pacman.anims.isPlaying) {
+                this.pacman.anims.stop();
+                this.pacman.anims.play('stop');
+            }
+        } else {
+            if (!this.pacman.anims.isPlaying) {
+                this.pacman.anims.play('moving');
+            }
+        }
+        if (this.pacman.nextDirection !== this.pacman.direction && pacmanCanTurn && pacmanInCenterOfSquare) {
+            this.pacman.direction = this.pacman.nextDirection;
+            this.updateDirection(this.pacman, false);
+        }
     }
 }

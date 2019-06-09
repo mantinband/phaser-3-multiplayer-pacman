@@ -8,7 +8,6 @@ export class QuestionScene extends Phaser.Scene {
 
     preload() {
         this.ghosts=[ 'blinky', 'clyde', 'inky', 'pinky'];
-
         this.ghostHeight = 16;
         this.ghostWidth = 16;
 
