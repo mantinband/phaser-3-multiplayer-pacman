@@ -8,6 +8,7 @@ export class QuestionScene extends Phaser.Scene {
 
     preload() {
         this.ghosts=[ 'blinky', 'clyde', 'inky', 'pinky'];
+        this.points={ 'easy' : 100, 'medium' : 200, 'hard' : 400 };
         this.ghostHeight = 16;
         this.ghostWidth = 16;
 
@@ -24,7 +25,7 @@ export class QuestionScene extends Phaser.Scene {
             width : 400
         };
         this.question = QUESTIONS[this.questionIndex].question;
-
+        this.questionDifficulty = QUESTIONS[this.questionIndex].difficulty;
         this.printingQuestion = true;
         this.printingAnswer = -1;
         this.distanceFromLeft = 480;

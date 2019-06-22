@@ -45,25 +45,39 @@ export class GameScene extends Phaser.Scene {
         this.addGhostsCollideAction();
     }
 
-    canTurn(x, y, direction, isGhost) {
+    update() {
+        /* if game is in "cand eaten" time */
+        if (this.timeToEatAnswer && ++this.timeToEatAnswerCounter === this.timeToEatAnswerDelay) {
+            if (--this.timeToEatAnswer === 0) {
+                this.scene.stop(CST.SCENES.QUESTION);
+            }
+            this.timeToEatAnswerCounter = 0;
+        }
+
+        this.updatePacman();
+        this.updateGhosts();
+    }
+
+    canMoveInDirection(x, y, direction) {
         var tile;
         switch (direction) {
             case Phaser.LEFT:
-                tile = this.map.getTileAt(x-1, y, true).index;
+                tile = this.map.getTileAt(x-1, y, true);
                 break;
             case Phaser.RIGHT:
-                tile = this.map.getTileAt(x+1, y, true).index;
+                tile = this.map.getTileAt(x+1, y, true);
                 break;
             case Phaser.UP:
-                tile = this.map.getTileAt(x, y-1, true).index;
+                tile = this.map.getTileAt(x, y-1, true);
                 break;
             case Phaser.DOWN:
-                tile = this.map.getTileAt(x, y+1, true).index;
+                tile = this.map.getTileAt(x, y+1, true);
                 break;
             default:
                 console.log('invalid direction: ' + direction);
         }
-        return (tile === this.safeTile || tile === this.dotTile) || (isGhost && tile === this.ghostHouseTile);
+        let tileIndex = tile === null ? -1 : tile.index;
+        return (tileIndex === this.safeTile || tileIndex === this.dotTile);
     }
 
     updateDirection(gameObject, isGhost) {
@@ -121,18 +135,6 @@ export class GameScene extends Phaser.Scene {
         }
     }
 
-    update() {
-        /* if game is in "cand eaten" time */
-        if (this.timeToEatAnswer && ++this.timeToEatAnswerCounter === this.timeToEatAnswerDelay) {
-            if (--this.timeToEatAnswer === 0) {
-                this.scene.stop(CST.SCENES.QUESTION);
-            }
-            this.timeToEatAnswerCounter = 0;
-        }
-
-        this.updatePacman();
-        this.updateGhosts();
-    }
 
     addCoins() {
         this.anims.create({
@@ -161,6 +163,7 @@ export class GameScene extends Phaser.Scene {
                     this.ghosts[ghost].ghost.anims.stop();
                     this.ghosts[ghost].ghost.anims.play(ghost + 'Blue');
                 }
+                this.updateDirection(this.pacman, false);
             }, null, this);
         }
     }
@@ -206,20 +209,21 @@ export class GameScene extends Phaser.Scene {
             });
             this.ghosts[ghost].ghost = this.add.sprite(this.ghosts[ghost].startX*16+8, this.ghosts[ghost].startY*16+8, ghost, 0);
             this.ghosts[ghost].ghost.name = ghost;
-            this.physics.world.enable(this.ghosts[ghost].ghost);
             this.ghosts[ghost].ghost.setScale(1.5);
-            this.ghosts[ghost].ghost.anims.play(ghost + 'Left');
+            this.ghosts[ghost].ghost.anims.play(ghost + 'Right');
             this.ghosts[ghost].ghost.direction = Phaser.RIGHT;
+            this.ghosts[ghost].ghost.nextDirection = Phaser.RIGHT;
             this.physics.add.collider(this.ghosts[ghost].ghost, this.layer);
+            this.physics.world.enable(this.ghosts[ghost].ghost);
             this.ghosts[ghost].ghost.body.setSize(this.ghostSize,this.ghostSize);
             this.ghosts[ghost].ghost.body.setVelocityX(100);
         }
     }
 
     addGhostsCollideAction() {
-        for (let ghost in this.ghosts) {
-            this.physics.add.collider(this.pacman, this.ghosts[ghost].ghost, function () {
-                if (this.timeToEatAnswer) {
+        // for (let ghost in this.ghosts) {
+            // this.physics.add.collider(this.pacman, this.ghosts[ghost].ghost, function () {
+            //     if (this.timeToEatAnswer) {
                     /* TODO: need to bring answer array, and correct answer from question scene */
                     // const answers = QuestionScene.answers;
                     // const correctAnswer = QUESTIONS[QuestionScene.questionIndex].correct_answer;
@@ -236,42 +240,13 @@ export class GameScene extends Phaser.Scene {
                     //     case 'pinky' :
                     //         alert((answers[3] === correctAnswer) ? 'correct!' : "incorrect!");
                     //         break;
-                    // }
-                } else {
-                    alert('game over');
-                }
-            }, null, this);
-        }
 
-    }
+                // } else {
+                //     alert('game over');
+                // }
+            // }, null, this);
+        // }
 
-    updateGhosts() {
-        for (var ghost in this.ghosts) {
-            const ghostX = this.ghosts[ghost].ghost.x;
-            const ghostY = this.ghosts[ghost].ghost.y;
-
-            this.ghosts[ghost].currentTileX = this.map.worldToTileX(ghostX);
-            this.ghosts[ghost].currentTileY = this.map.worldToTileY(ghostY);
-
-            const ghostInCenterOfSquare = (Math.abs(ghostX - (this.ghosts[ghost].currentTileX*16+8)) < this.threshold) &&
-                                          (Math.abs(ghostY - (this.ghosts[ghost].currentTileY*16+8)) < this.threshold);
-            /* if reached wall*/
-            if (ghostInCenterOfSquare && !this.canTurn(this.ghosts[ghost].currentTileX,
-                                                       this.ghosts[ghost].currentTileY,
-                                                       this.ghosts[ghost].ghost.direction,
-                                                       true)) {
-                let ghostAvailableDirections = [];
-                let direction = [Phaser.LEFT, Phaser.RIGHT, Phaser.UP, Phaser.DOWN];
-
-                direction.forEach(function(direction) {
-                    if (this.canTurn(this.ghosts[ghost].currentTileX, this.ghosts[ghost].currentTileY, direction, true)) {
-                        ghostAvailableDirections.push(direction);
-                    }
-                }, this);
-                this.ghosts[ghost].ghost.direction = ghostAvailableDirections[this.randInt(0, ghostAvailableDirections.length)];
-                this.updateDirection(this.ghosts[ghost].ghost, true);
-            }
-        }
     }
 
     randInt(min, max) {
@@ -279,7 +254,6 @@ export class GameScene extends Phaser.Scene {
     }
 
     initStaticConfigurations() {
-
         this.ghosts = {
             blinky: {
                 startX : 13,
@@ -322,22 +296,25 @@ export class GameScene extends Phaser.Scene {
             },
         };
 
-        this.ghostHeight = 16;
-        this.ghostWidth = 16;
-        this.timeToEatAnswerDelay   = 30;
-        this.timeToEatAnswerCounter = 0;
-        this.timeToEatAnswer        = 0;
-        this.safeTile        = 14;
-        this.dotTile         = 7;
-        this.ghostHouseTile  = 83;
-        this.speed           = 100;
-        this.pacmanSize      = 12.5;
-        this.ghostSize       = 1;
-        this.coinSize        = 12;
-        this.threshold       = 2.05;
-        this.dotCount        = 0;
-        this.numTotalDots    = 272;
-        this.marker          = new Phaser.Geom.Point();
+        this.ghostHeight                 = 16;
+        this.ghostWidth                  = 16;
+        this.timeToEatAnswerDelay        = 30;
+        this.timeToEatAnswerCounter      = 0;
+        this.timeToEatAnswer             = 0;
+        this.ghostCheckDirectionsDelay   = 8;
+        this.ghostCheckDirectionsCounter = 0;
+        this.safeTile                    = 14;
+        this.dotTile                     = 7;
+        this.ghostHouseTile              = 83;
+        this.speed                       = 100;
+        this.pacmanSize                  = 12.5;
+        this.ghostSize                   = 0.1;
+        this.coinSize                    = 9;
+        this.threshold                   = 2.05;
+        this.ghostThreshold              = 1.9;
+        this.dotCount                    = 0;
+        this.numTotalDots                = 272;
+        this.marker                      = new Phaser.Geom.Point();
     }
 
     initPacman() {
@@ -372,6 +349,38 @@ export class GameScene extends Phaser.Scene {
         this.pacman.nextDirection = Phaser.RIGHT;
     }
 
+    getOppositeDirection(direction) {
+        switch (direction) {
+            case Phaser.UP:
+                return Phaser.DOWN;
+            case Phaser.DOWN:
+                return Phaser.UP;
+            case Phaser.RIGHT:
+                return Phaser.LEFT;
+            case Phaser.LEFT:
+                return Phaser.RIGHT;
+            default:
+                console.log('getOppositeDirection: invalid direction!');
+                return Phaser.AUTO;
+        }
+    }
+
+    getNextTile(currentTile, currentDirection, plane) {
+        switch (currentDirection) {
+            case Phaser.UP:
+                return plane === 'X' ? currentTile : currentTile-1;
+            case Phaser.DOWN:
+                return plane === 'X' ? currentTile : currentTile+1;
+            case Phaser.RIGHT:
+                return plane === 'X' ? currentTile+1 : currentTile;
+            case Phaser.LEFT:
+                return plane === 'X' ? currentTile-1 : currentTile;
+            default:
+                console.log('getNextTile: invalid direction!');
+                return Phaser.AUTO;
+        }
+    }
+
     updatePacman() {
         const pacmanX = this.pacman.x;
         const pacmanY = this.pacman.y;
@@ -380,12 +389,11 @@ export class GameScene extends Phaser.Scene {
         this.marker.y = this.map.worldToTileY(pacmanY);
 
         const pacmanInCenterOfSquare = (Math.abs(pacmanX - (this.marker.x*16+8)) < this.threshold) &&
-            (Math.abs(pacmanY - (this.marker.y*16+8)) < this.threshold);
+                                       (Math.abs(pacmanY - (this.marker.y*16+8)) < this.threshold);
 
-        const pacmanCanTurn = this.canTurn(this.marker.x,
-            this.marker.y,
-            this.pacman.nextDirection,
-            false);
+        const pacmanCanTurn = this.canMoveInDirection(this.marker.x,
+                                                      this.marker.y,
+                                                      this.pacman.nextDirection);
 
         this.currentTile = this.map.getTileAt(this.marker.x, this.marker.y, true);
 
@@ -413,4 +421,48 @@ export class GameScene extends Phaser.Scene {
             this.updateDirection(this.pacman, false);
         }
     }
+
+    updateGhosts() {
+        for (var ghost in this.ghosts) {
+            const ghostX = this.ghosts[ghost].ghost.x;
+            const ghostY = this.ghosts[ghost].ghost.y;
+
+            this.ghosts[ghost].currentTileX = this.map.worldToTileX(ghostX);
+            this.ghosts[ghost].currentTileY = this.map.worldToTileY(ghostY);
+
+            const ghostInCenterOfSquare = (Math.abs(ghostX - (this.ghosts[ghost].currentTileX*16+8)) < this.ghostThreshold) &&
+                                          (Math.abs(ghostY - (this.ghosts[ghost].currentTileY*16+8)) < this.ghostThreshold);
+
+            if (ghostInCenterOfSquare                                                                       &&
+                              this.ghosts[ghost].ghost.nextDirection !== this.ghosts[ghost].ghost.direction &&
+                              this.canMoveInDirection(this.ghosts[ghost].currentTileX, this.ghosts[ghost].currentTileY, this.ghosts[ghost].ghost.nextDirection)) {
+                this.ghosts[ghost].ghost.direction = this.ghosts[ghost].ghost.nextDirection;
+                this.updateDirection(this.ghosts[ghost].ghost, true);
+            }
+        }
+        if (this.ghostCheckDirectionsCounter === this.ghostCheckDirectionsDelay) {
+            for (var ghost in this.ghosts) {
+                let ghostAvailableDirections = [];
+                let nextTileX = this.getNextTile(this.ghosts[ghost].currentTileX, this.ghosts[ghost].ghost.direction, 'X');
+                let nextTileY = this.getNextTile(this.ghosts[ghost].currentTileY, this.ghosts[ghost].ghost.direction, 'Y');
+                let directions = [Phaser.LEFT, Phaser.RIGHT, Phaser.UP, Phaser.DOWN];
+
+                directions.forEach(function (direction) {
+                    if (direction !== this.getOppositeDirection(this.ghosts[ghost].ghost.direction) &&
+                        this.canMoveInDirection(nextTileX, nextTileY, direction)) {
+                        ghostAvailableDirections.push(direction);
+                    }
+                }, this);
+
+                if (ghostAvailableDirections.length) {
+                    this.ghosts[ghost].ghost.nextDirection = ghostAvailableDirections[this.randInt(0, ghostAvailableDirections.length)];
+                } else {
+                    this.ghosts[ghost].ghost.nextDirection = this.getOppositeDirection(this.ghosts[ghost].ghost.direction);
+                }
+            }
+            this.ghostCheckDirectionsCounter=0;
+        }
+        this.ghostCheckDirectionsCounter++;
+    }
+
 }
