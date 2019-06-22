@@ -8,8 +8,7 @@ export class GameScene extends Phaser.Scene {
     }
 
     init(multiplayer) {
-        this.multiplayer = multiplayer === true ? true : false;
-        alert(this.multiplayer);
+        this.multiplayer = multiplayer === true;
     }
     preload() {
         this.initStaticConfigurations();
@@ -69,6 +68,12 @@ export class GameScene extends Phaser.Scene {
             }
         }, this);
 
+
+        this.addCoins();
+        this.addGhosts();
+        this.addCoinsCollideAction(this.pacman1);
+        this.addGhostsCollideAction(this.pacman1);
+
         if (this.multiplayer) {
             this.initPacman('pacman2');
             this.pacman2.scoreText = this.add.text(this.textDistanceFromLeft + 250 , 440, '' , this.textStyle);
@@ -76,11 +81,6 @@ export class GameScene extends Phaser.Scene {
             this.addCoinsCollideAction(this.pacman2);
             this.addGhostsCollideAction(this.pacman2);
         }
-
-        this.addCoins();
-        this.addCoinsCollideAction(this.pacman1);
-        this.addGhosts();
-        this.addGhostsCollideAction(this.pacman1);
     }
 
     update() {
@@ -195,7 +195,7 @@ export class GameScene extends Phaser.Scene {
         for (let spot in this.coins) {
             this.physics.add.collider(pacman, this.coins[spot].coin, function () {
                 this.coins[spot].coin.destroy();
-                this.scene.launch(CST.SCENES.QUESTION, 'hello');
+                this.scene.launch(CST.SCENES.QUESTION);
                 this.scene.pause();
                 this.timeToEatAnswer = 14;
                 for (let ghost in this.ghosts) {
