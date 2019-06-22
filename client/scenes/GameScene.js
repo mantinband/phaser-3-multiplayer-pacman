@@ -6,9 +6,13 @@ export class GameScene extends Phaser.Scene {
     constructor() {
         super({key: CST.SCENES.GAME })
     }
+
+    init(multiplayer) {
+        this.multiplayer = multiplayer === true ? true : false;
+        alert(this.multiplayer);
+    }
     preload() {
         this.initStaticConfigurations();
-
         this.load.image('dot', 'dot.png');
         this.load.image('candy', 'candy.png');
         this.load.tilemapTiledJSON('map', 'pacman-map.json');
@@ -23,32 +27,64 @@ export class GameScene extends Phaser.Scene {
     }
 
     create() {
-        this.scoreText = this.add.text(this.textDistanceFromLeft , 440, '' , this.textStyle);
-        this.updateScore();
         this.map = this.make.tilemap({key:'map'});
         const tileset = this.map.addTilesetImage('pacman-tiles', 'tiles');
         this.layer = this.map.createDynamicLayer('Pacman', tileset);
 
-        this.initPacman();
+        this.anims.create({
+            key: 'moving',
+            frames: this.anims.generateFrameNumbers('pacman', { frames: [2, 1, 0, 1]}),
+            frameRate: 16,
+            repeat: -1
+        });
+        this.anims.create({
+            key: 'stop',
+            frames: this.anims.generateFrameNumbers('pacman', { frames: [1]}),
+            frameRate: 10,
+            repeat: 1
+        });
+        this.initPacman('pacman1');
+        this.pacman1.scoreText = this.add.text(this.textDistanceFromLeft , 440, '' , this.textStyle);
+
+
+
+        this.updateScore(this.pacman1);
 
         this.input.keyboard.on('keydown', function (eventName, event) {
             switch (eventName.key) {
-                case 'ArrowDown':   this.pacman.nextDirection = Phaser.DOWN;  break;
-                case 'ArrowUp':     this.pacman.nextDirection = Phaser.UP;    break;
-                case 'ArrowLeft':   this.pacman.nextDirection = Phaser.LEFT;  break;
-                case 'ArrowRight':  this.pacman.nextDirection = Phaser.RIGHT; break;
+                case 'ArrowDown':   this.pacman1.nextDirection = Phaser.DOWN;  break;
+                case 'ArrowUp':     this.pacman1.nextDirection = Phaser.UP;    break;
+                case 'ArrowLeft':   this.pacman1.nextDirection = Phaser.LEFT;  break;
+                case 'ArrowRight':  this.pacman1.nextDirection = Phaser.RIGHT; break;
+
                 default: console.log('invalid button pressed: ' + eventName.key);
+            }
+            if (this.multiplayer) {
+                switch (eventName.key) {
+                    case 'h': this.pacman2.nextDirection = Phaser.LEFT; break;
+                    case 'l': this.pacman2.nextDirection = Phaser.RIGHT; break;
+                    case 'j': this.pacman2.nextDirection = Phaser.DOWN; break;
+                    case 'k': this.pacman2.nextDirection = Phaser.UP; break;
+                    default: console.log('invalid button pressed: ' + eventName.key); }
             }
         }, this);
 
+        if (this.multiplayer) {
+            this.initPacman('pacman2');
+            this.pacman2.scoreText = this.add.text(this.textDistanceFromLeft + 250 , 440, '' , this.textStyle);
+            this.updateScore(this.pacman2);
+            this.addCoinsCollideAction(this.pacman2);
+            this.addGhostsCollideAction(this.pacman2);
+        }
+
         this.addCoins();
-        this.addCoinsCollideAction();
+        this.addCoinsCollideAction(this.pacman1);
         this.addGhosts();
-        this.addGhostsCollideAction();
+        this.addGhostsCollideAction(this.pacman1);
     }
 
     update() {
-        /* if game is in "cand eaten" time */
+        /* if game is in "candy eaten" time */
         if (this.timeToEatAnswer && ++this.timeToEatAnswerCounter === this.timeToEatAnswerDelay) {
             if (--this.timeToEatAnswer === 0) {
                 this.scene.stop(CST.SCENES.QUESTION);
@@ -56,7 +92,10 @@ export class GameScene extends Phaser.Scene {
             this.timeToEatAnswerCounter = 0;
         }
 
-        this.updatePacman();
+        this.updatePacman(this.pacman1);
+        if (this.multiplayer) {
+            this.updatePacman(this.pacman2);
+        }
         this.updateGhosts();
     }
 
@@ -133,10 +172,8 @@ export class GameScene extends Phaser.Scene {
                 gameObject.body.setVelocityY(this.speed);
                 break;
             default: console.log('updateDirection: invalid direction: ' + gameObject.direction);
-;
         }
     }
-
 
     addCoins() {
         this.anims.create({
@@ -154,9 +191,9 @@ export class GameScene extends Phaser.Scene {
         }
     }
 
-    addCoinsCollideAction() {
+    addCoinsCollideAction(pacman) {
         for (let spot in this.coins) {
-            this.physics.add.collider(this.pacman, this.coins[spot].coin, function () {
+            this.physics.add.collider(pacman, this.coins[spot].coin, function () {
                 this.coins[spot].coin.destroy();
                 this.scene.launch(CST.SCENES.QUESTION, 'hello');
                 this.scene.pause();
@@ -165,12 +202,12 @@ export class GameScene extends Phaser.Scene {
                     this.ghosts[ghost].ghost.anims.stop();
                     this.ghosts[ghost].ghost.anims.play(ghost + 'Blue');
                 }
-                this.updateDirection(this.pacman, false);
+                this.updateDirection(pacman, false);
             }, null, this);
         }
     }
 
-    indexToPixel(index) {
+    static indexToPixel(index) {
         return index*16+8;
     }
 
@@ -213,7 +250,7 @@ export class GameScene extends Phaser.Scene {
                 frameRate: 10,
                 repeat: -1
             });
-            this.ghosts[ghost].ghost = this.add.sprite(this.indexToPixel(this.ghosts[ghost].startX), this.indexToPixel(this.ghosts[ghost].startY), ghost, 0);
+            this.ghosts[ghost].ghost = this.add.sprite(GameScene.indexToPixel(this.ghosts[ghost].startX), GameScene.indexToPixel(this.ghosts[ghost].startY), ghost, 0);
             this.ghosts[ghost].ghost.name = ghost;
             this.ghosts[ghost].ghost.setScale(1.5);
             this.ghosts[ghost].ghost.anims.play(ghost + 'Right');
@@ -226,12 +263,12 @@ export class GameScene extends Phaser.Scene {
         }
     }
 
-    addGhostsCollideAction() {
+    addGhostsCollideAction(pacman) {
         for (let ghost in this.ghosts) {
-            this.physics.add.overlap(this.pacman, this.ghosts[ghost].ghost, function () {
+            this.physics.add.overlap(pacman, this.ghosts[ghost].ghost, function () {
                 if (this.timeToEatAnswer) {
-                    this.ghosts[ghost].ghost.setX(this.indexToPixel(this.ghosts[ghost].startX));
-                    this.ghosts[ghost].ghost.setY(this.indexToPixel(this.ghosts[ghost].startY));
+                    this.ghosts[ghost].ghost.setX(GameScene.indexToPixel(this.ghosts[ghost].startX));
+                    this.ghosts[ghost].ghost.setY(GameScene.indexToPixel(this.ghosts[ghost].startY));
                     this.ghosts[ghost].ghost.anims.play(ghost + 'Right');
                     this.ghosts[ghost].ghost.direction = Phaser.RIGHT;
                     this.ghosts[ghost].ghost.nextDirection = Phaser.RIGHT;
@@ -239,10 +276,10 @@ export class GameScene extends Phaser.Scene {
                     console.log(GameScene.question.answers[this.ghosts[ghost].index]);
                     if (GameScene.question.answers[this.ghosts[ghost].index] === GameScene.question.correctAnswer) {
                         alert('correct');
-                        this.score += GameScene.question.getCorrectAnswerPoints();
+                        pacman.score += GameScene.question.getCorrectAnswerPoints();
                     } else {
                         alert('wrong');
-                        this.score -= GameScene.question.getWrongAnswerPoints();
+                        pacman.score -= GameScene.question.getWrongAnswerPoints();
                     }
                 } else {
                     alert('game over');
@@ -312,7 +349,6 @@ export class GameScene extends Phaser.Scene {
         };
 
         this.textDistanceFromLeft        = 480;
-        this.score                       = 0;
         this.ghostHeight                 = 16;
         this.ghostWidth                  = 16;
         this.timeToEatAnswerDelay        = 30;
@@ -332,38 +368,26 @@ export class GameScene extends Phaser.Scene {
         this.dotCount                    = 0;
         this.numTotalDots                = 272;
         this.marker                      = new Phaser.Geom.Point();
+
     }
 
-    initPacman() {
-        this.pacman = this.add.sprite((14 * 16) + 8, (17 * 16) + 8, 'pacman', 2);
+    initPacman(pacmanName) {
+        this[pacmanName] = this.add.sprite((14 * 16) + 8, (17 * 16) + 8, 'pacman', 2);
 
         /* set collision for all tiles besides dots and empty tiles */
         this.layer.setCollisionByExclusion([this.safeTile,this.dotTile]);
 
         /* set collision between pacman and the layer */
-        this.physics.add.collider(this.pacman, this.layer);
+        this.physics.add.collider(this[pacmanName], this.layer);
 
-        this.physics.world.enable(this.pacman);
-        this.pacman.body.setVelocityX(100);
-        this.pacman.body.setSize(this.pacmanSize,this.pacmanSize);
+        this.physics.world.enable(this[pacmanName]);
+        this[pacmanName].body.setVelocityX(100);
+        this[pacmanName].body.setSize(this.pacmanSize,this.pacmanSize);
 
-
-        this.anims.create({
-            key: 'moving',
-            frames: this.anims.generateFrameNumbers('pacman', { frames: [2, 1, 0, 1]}),
-            frameRate: 16,
-            repeat: -1
-        });
-        this.anims.create({
-            key: 'stop',
-            frames: this.anims.generateFrameNumbers('pacman', { frames: [1]}),
-            frameRate: 10,
-            repeat: 1
-        });
-
-        this.pacman.anims.play('moving');
-        this.pacman.direction     = Phaser.RIGHT;
-        this.pacman.nextDirection = Phaser.RIGHT;
+        this[pacmanName].anims.play('moving');
+        this[pacmanName].direction     = Phaser.RIGHT;
+        this[pacmanName].nextDirection = Phaser.RIGHT;
+        this[pacmanName].score         = 0;
     }
 
     getOppositeDirection(direction) {
@@ -398,9 +422,9 @@ export class GameScene extends Phaser.Scene {
         }
     }
 
-    updatePacman() {
-        const pacmanX = this.pacman.x;
-        const pacmanY = this.pacman.y;
+    updatePacman(pacman) {
+        const pacmanX = pacman.x;
+        const pacmanY = pacman.y;
 
         this.marker.x = this.map.worldToTileX(pacmanX);
         this.marker.y = this.map.worldToTileY(pacmanY);
@@ -410,14 +434,14 @@ export class GameScene extends Phaser.Scene {
 
         const pacmanCanTurn = this.canMoveInDirection(this.marker.x,
                                                       this.marker.y,
-                                                      this.pacman.nextDirection);
+                                                      pacman.nextDirection);
 
         this.currentTile = this.map.getTileAt(this.marker.x, this.marker.y, true);
 
         if (this.currentTile.index === this.dotTile) {
             this.dotCount++;
-            this.score++;
-            this.updateScore();
+            pacman.score++;
+            this.updateScore(pacman);
             this.currentTile.index = this.safeTile;
 
             if (this.dotCount === this.numTotalDots) {
@@ -425,24 +449,24 @@ export class GameScene extends Phaser.Scene {
             }
         }
 
-        if (this.pacman.nextDirection === this.pacman.direction && !pacmanCanTurn) {
-            if (this.pacman.anims.isPlaying) {
-                this.pacman.anims.stop();
-                this.pacman.anims.play('stop');
+        if (pacman.nextDirection === pacman.direction && !pacmanCanTurn) {
+            if (pacman.anims.isPlaying) {
+                pacman.anims.stop();
+                pacman.anims.play('stop');
             }
         } else {
-            if (!this.pacman.anims.isPlaying) {
-                this.pacman.anims.play('moving');
+            if (!pacman.anims.isPlaying) {
+                pacman.anims.play('moving');
             }
         }
-        if (this.pacman.nextDirection !== this.pacman.direction && pacmanCanTurn && pacmanInCenterOfSquare) {
-            this.pacman.direction = this.pacman.nextDirection;
-            this.updateDirection(this.pacman, false);
+        if (pacman.nextDirection !== pacman.direction && pacmanCanTurn && pacmanInCenterOfSquare) {
+            pacman.direction = pacman.nextDirection;
+            this.updateDirection(pacman, false);
         }
     }
 
-    updateScore() {
-        this.scoreText.text = 'Score: ' + this.score;
+    updateScore(pacman) {
+        pacman.scoreText.text = 'Score: ' + pacman.score;
     }
 
     updateGhosts() {
@@ -494,7 +518,6 @@ export class GameScene extends Phaser.Scene {
         GameScene.question = new Question(question, answers, correctAnswer, difficulty);
         console.log('correct answer: ' + GameScene.question.correctAnswer);
     }
-
 }
 
 class Question {

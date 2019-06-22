@@ -686,6 +686,12 @@ function (_Phaser$Scene) {
   }
 
   _createClass(GameScene, [{
+    key: "init",
+    value: function init(multiplayer) {
+      this.multiplayer = multiplayer === true ? true : false;
+      alert(this.multiplayer);
+    }
+  }, {
     key: "preload",
     value: function preload() {
       this.initStaticConfigurations();
@@ -712,45 +718,93 @@ function (_Phaser$Scene) {
   }, {
     key: "create",
     value: function create() {
-      this.scoreText = this.add.text(this.textDistanceFromLeft, 440, '', this.textStyle);
-      this.updateScore();
       this.map = this.make.tilemap({
         key: 'map'
       });
       var tileset = this.map.addTilesetImage('pacman-tiles', 'tiles');
       this.layer = this.map.createDynamicLayer('Pacman', tileset);
-      this.initPacman();
+      this.anims.create({
+        key: 'moving',
+        frames: this.anims.generateFrameNumbers('pacman', {
+          frames: [2, 1, 0, 1]
+        }),
+        frameRate: 16,
+        repeat: -1
+      });
+      this.anims.create({
+        key: 'stop',
+        frames: this.anims.generateFrameNumbers('pacman', {
+          frames: [1]
+        }),
+        frameRate: 10,
+        repeat: 1
+      });
+      this.initPacman('pacman1');
+      this.pacman1.scoreText = this.add.text(this.textDistanceFromLeft, 440, '', this.textStyle);
+      this.updateScore(this.pacman1);
       this.input.keyboard.on('keydown', function (eventName, event) {
         switch (eventName.key) {
           case 'ArrowDown':
-            this.pacman.nextDirection = Phaser.DOWN;
+            this.pacman1.nextDirection = Phaser.DOWN;
             break;
 
           case 'ArrowUp':
-            this.pacman.nextDirection = Phaser.UP;
+            this.pacman1.nextDirection = Phaser.UP;
             break;
 
           case 'ArrowLeft':
-            this.pacman.nextDirection = Phaser.LEFT;
+            this.pacman1.nextDirection = Phaser.LEFT;
             break;
 
           case 'ArrowRight':
-            this.pacman.nextDirection = Phaser.RIGHT;
+            this.pacman1.nextDirection = Phaser.RIGHT;
             break;
 
           default:
             console.log('invalid button pressed: ' + eventName.key);
         }
+
+        if (this.multiplayer) {
+          switch (eventName.key) {
+            case 'h':
+              this.pacman2.nextDirection = Phaser.LEFT;
+              break;
+
+            case 'l':
+              this.pacman2.nextDirection = Phaser.RIGHT;
+              break;
+
+            case 'j':
+              this.pacman2.nextDirection = Phaser.DOWN;
+              break;
+
+            case 'k':
+              this.pacman2.nextDirection = Phaser.UP;
+              break;
+
+            default:
+              console.log('invalid button pressed: ' + eventName.key);
+          }
+        }
       }, this);
+
+      if (this.multiplayer) {
+        this.initPacman('pacman2');
+        this.pacman2.scoreText = this.add.text(this.textDistanceFromLeft + 250, 440, '', this.textStyle);
+        this.updateScore(this.pacman2);
+        this.addCoinsCollideAction(this.pacman2);
+        this.addGhostsCollideAction(this.pacman2);
+      }
+
       this.addCoins();
-      this.addCoinsCollideAction();
+      this.addCoinsCollideAction(this.pacman1);
       this.addGhosts();
-      this.addGhostsCollideAction();
+      this.addGhostsCollideAction(this.pacman1);
     }
   }, {
     key: "update",
     value: function update() {
-      /* if game is in "cand eaten" time */
+      /* if game is in "candy eaten" time */
       if (this.timeToEatAnswer && ++this.timeToEatAnswerCounter === this.timeToEatAnswerDelay) {
         if (--this.timeToEatAnswer === 0) {
           this.scene.stop(_CST.CST.SCENES.QUESTION);
@@ -759,7 +813,12 @@ function (_Phaser$Scene) {
         this.timeToEatAnswerCounter = 0;
       }
 
-      this.updatePacman();
+      this.updatePacman(this.pacman1);
+
+      if (this.multiplayer) {
+        this.updatePacman(this.pacman2);
+      }
+
       this.updateGhosts();
     }
   }, {
@@ -853,7 +912,6 @@ function (_Phaser$Scene) {
 
         default:
           console.log('updateDirection: invalid direction: ' + gameObject.direction);
-          ;
       }
     }
   }, {
@@ -878,11 +936,11 @@ function (_Phaser$Scene) {
     }
   }, {
     key: "addCoinsCollideAction",
-    value: function addCoinsCollideAction() {
+    value: function addCoinsCollideAction(pacman) {
       var _this = this;
 
       var _loop = function _loop(spot) {
-        _this.physics.add.collider(_this.pacman, _this.coins[spot].coin, function () {
+        _this.physics.add.collider(pacman, _this.coins[spot].coin, function () {
           this.coins[spot].coin.destroy();
           this.scene.launch(_CST.CST.SCENES.QUESTION, 'hello');
           this.scene.pause();
@@ -893,18 +951,13 @@ function (_Phaser$Scene) {
             this.ghosts[ghost].ghost.anims.play(ghost + 'Blue');
           }
 
-          this.updateDirection(this.pacman, false);
+          this.updateDirection(pacman, false);
         }, null, _this);
       };
 
       for (var spot in this.coins) {
         _loop(spot);
       }
-    }
-  }, {
-    key: "indexToPixel",
-    value: function indexToPixel(index) {
-      return index * 16 + 8;
     }
   }, {
     key: "addGhosts",
@@ -959,7 +1012,7 @@ function (_Phaser$Scene) {
           frameRate: 10,
           repeat: -1
         });
-        this.ghosts[ghost].ghost = this.add.sprite(this.indexToPixel(this.ghosts[ghost].startX), this.indexToPixel(this.ghosts[ghost].startY), ghost, 0);
+        this.ghosts[ghost].ghost = this.add.sprite(GameScene.indexToPixel(this.ghosts[ghost].startX), GameScene.indexToPixel(this.ghosts[ghost].startY), ghost, 0);
         this.ghosts[ghost].ghost.name = ghost;
         this.ghosts[ghost].ghost.setScale(1.5);
         this.ghosts[ghost].ghost.anims.play(ghost + 'Right');
@@ -973,14 +1026,14 @@ function (_Phaser$Scene) {
     }
   }, {
     key: "addGhostsCollideAction",
-    value: function addGhostsCollideAction() {
+    value: function addGhostsCollideAction(pacman) {
       var _this2 = this;
 
       var _loop2 = function _loop2(ghost) {
-        _this2.physics.add.overlap(_this2.pacman, _this2.ghosts[ghost].ghost, function () {
+        _this2.physics.add.overlap(pacman, _this2.ghosts[ghost].ghost, function () {
           if (this.timeToEatAnswer) {
-            this.ghosts[ghost].ghost.setX(this.indexToPixel(this.ghosts[ghost].startX));
-            this.ghosts[ghost].ghost.setY(this.indexToPixel(this.ghosts[ghost].startY));
+            this.ghosts[ghost].ghost.setX(GameScene.indexToPixel(this.ghosts[ghost].startX));
+            this.ghosts[ghost].ghost.setY(GameScene.indexToPixel(this.ghosts[ghost].startY));
             this.ghosts[ghost].ghost.anims.play(ghost + 'Right');
             this.ghosts[ghost].ghost.direction = Phaser.RIGHT;
             this.ghosts[ghost].ghost.nextDirection = Phaser.RIGHT;
@@ -989,10 +1042,10 @@ function (_Phaser$Scene) {
 
             if (GameScene.question.answers[this.ghosts[ghost].index] === GameScene.question.correctAnswer) {
               alert('correct');
-              this.score += GameScene.question.getCorrectAnswerPoints();
+              pacman.score += GameScene.question.getCorrectAnswerPoints();
             } else {
               alert('wrong');
-              this.score -= GameScene.question.getWrongAnswerPoints();
+              pacman.score -= GameScene.question.getWrongAnswerPoints();
             }
           } else {
             alert('game over');
@@ -1064,7 +1117,6 @@ function (_Phaser$Scene) {
         }
       };
       this.textDistanceFromLeft = 480;
-      this.score = 0;
       this.ghostHeight = 16;
       this.ghostWidth = 16;
       this.timeToEatAnswerDelay = 30;
@@ -1087,36 +1139,21 @@ function (_Phaser$Scene) {
     }
   }, {
     key: "initPacman",
-    value: function initPacman() {
-      this.pacman = this.add.sprite(14 * 16 + 8, 17 * 16 + 8, 'pacman', 2);
+    value: function initPacman(pacmanName) {
+      this[pacmanName] = this.add.sprite(14 * 16 + 8, 17 * 16 + 8, 'pacman', 2);
       /* set collision for all tiles besides dots and empty tiles */
 
       this.layer.setCollisionByExclusion([this.safeTile, this.dotTile]);
       /* set collision between pacman and the layer */
 
-      this.physics.add.collider(this.pacman, this.layer);
-      this.physics.world.enable(this.pacman);
-      this.pacman.body.setVelocityX(100);
-      this.pacman.body.setSize(this.pacmanSize, this.pacmanSize);
-      this.anims.create({
-        key: 'moving',
-        frames: this.anims.generateFrameNumbers('pacman', {
-          frames: [2, 1, 0, 1]
-        }),
-        frameRate: 16,
-        repeat: -1
-      });
-      this.anims.create({
-        key: 'stop',
-        frames: this.anims.generateFrameNumbers('pacman', {
-          frames: [1]
-        }),
-        frameRate: 10,
-        repeat: 1
-      });
-      this.pacman.anims.play('moving');
-      this.pacman.direction = Phaser.RIGHT;
-      this.pacman.nextDirection = Phaser.RIGHT;
+      this.physics.add.collider(this[pacmanName], this.layer);
+      this.physics.world.enable(this[pacmanName]);
+      this[pacmanName].body.setVelocityX(100);
+      this[pacmanName].body.setSize(this.pacmanSize, this.pacmanSize);
+      this[pacmanName].anims.play('moving');
+      this[pacmanName].direction = Phaser.RIGHT;
+      this[pacmanName].nextDirection = Phaser.RIGHT;
+      this[pacmanName].score = 0;
     }
   }, {
     key: "getOppositeDirection",
@@ -1162,19 +1199,19 @@ function (_Phaser$Scene) {
     }
   }, {
     key: "updatePacman",
-    value: function updatePacman() {
-      var pacmanX = this.pacman.x;
-      var pacmanY = this.pacman.y;
+    value: function updatePacman(pacman) {
+      var pacmanX = pacman.x;
+      var pacmanY = pacman.y;
       this.marker.x = this.map.worldToTileX(pacmanX);
       this.marker.y = this.map.worldToTileY(pacmanY);
       var pacmanInCenterOfSquare = Math.abs(pacmanX - (this.marker.x * 16 + 8)) < this.threshold && Math.abs(pacmanY - (this.marker.y * 16 + 8)) < this.threshold;
-      var pacmanCanTurn = this.canMoveInDirection(this.marker.x, this.marker.y, this.pacman.nextDirection);
+      var pacmanCanTurn = this.canMoveInDirection(this.marker.x, this.marker.y, pacman.nextDirection);
       this.currentTile = this.map.getTileAt(this.marker.x, this.marker.y, true);
 
       if (this.currentTile.index === this.dotTile) {
         this.dotCount++;
-        this.score++;
-        this.updateScore();
+        pacman.score++;
+        this.updateScore(pacman);
         this.currentTile.index = this.safeTile;
 
         if (this.dotCount === this.numTotalDots) {
@@ -1182,26 +1219,26 @@ function (_Phaser$Scene) {
         }
       }
 
-      if (this.pacman.nextDirection === this.pacman.direction && !pacmanCanTurn) {
-        if (this.pacman.anims.isPlaying) {
-          this.pacman.anims.stop();
-          this.pacman.anims.play('stop');
+      if (pacman.nextDirection === pacman.direction && !pacmanCanTurn) {
+        if (pacman.anims.isPlaying) {
+          pacman.anims.stop();
+          pacman.anims.play('stop');
         }
       } else {
-        if (!this.pacman.anims.isPlaying) {
-          this.pacman.anims.play('moving');
+        if (!pacman.anims.isPlaying) {
+          pacman.anims.play('moving');
         }
       }
 
-      if (this.pacman.nextDirection !== this.pacman.direction && pacmanCanTurn && pacmanInCenterOfSquare) {
-        this.pacman.direction = this.pacman.nextDirection;
-        this.updateDirection(this.pacman, false);
+      if (pacman.nextDirection !== pacman.direction && pacmanCanTurn && pacmanInCenterOfSquare) {
+        pacman.direction = pacman.nextDirection;
+        this.updateDirection(pacman, false);
       }
     }
   }, {
     key: "updateScore",
-    value: function updateScore() {
-      this.scoreText.text = 'Score: ' + this.score;
+    value: function updateScore(pacman) {
+      pacman.scoreText.text = 'Score: ' + pacman.score;
     }
   }, {
     key: "updateGhosts",
@@ -1257,6 +1294,11 @@ function (_Phaser$Scene) {
       this.ghostCheckDirectionsCounter++;
     }
   }], [{
+    key: "indexToPixel",
+    value: function indexToPixel(index) {
+      return index * 16 + 8;
+    }
+  }, {
     key: "setQuestion",
     value: function setQuestion(question, answers, correctAnswer, difficulty) {
       GameScene.question = new Question(question, answers, correctAnswer, difficulty);
@@ -1310,7 +1352,7 @@ var _QuestionScene = require("./scenes/QuestionScene.js");
 var game = new Phaser.Game({
   width: 448 * 2,
   height: 496,
-  scene: [_GameScene.GameScene, _QuestionScene.QuestionScene],
+  scene: [MenuScene, _GameScene.GameScene, _QuestionScene.QuestionScene],
   physics: {
     default: 'arcade'
   }
@@ -1343,7 +1385,7 @@ var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var hostname = "" || location.hostname;
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-  var ws = new WebSocket(protocol + '://' + hostname + ':' + "39789" + '/');
+  var ws = new WebSocket(protocol + '://' + hostname + ':' + "44455" + '/');
 
   ws.onmessage = function (event) {
     checkedAssets = {};
