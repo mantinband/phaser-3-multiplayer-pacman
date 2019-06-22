@@ -7,8 +7,12 @@ export class GameScene extends Phaser.Scene {
         super({key: CST.SCENES.GAME })
     }
 
-    init(multiplayer) {
-        this.multiplayer = multiplayer === true;
+    init(config) {
+        this.multiplayer = config.multiplayer === true;
+        this.namePlayer1 = config.namePlayer1;
+        if (this.multiplayer) {
+            this.namePlayer2 = config.namePlayer2;
+        }
     }
     preload() {
         this.initStaticConfigurations();
@@ -42,7 +46,7 @@ export class GameScene extends Phaser.Scene {
             frameRate: 10,
             repeat: 1
         });
-        this.initPacman('pacman1');
+        this.initPacman('pacman1', this.namePlayer1);
         this.pacman1.scoreText = this.add.text(this.textDistanceFromLeft , 440, '' , this.textStyle);
 
 
@@ -75,8 +79,8 @@ export class GameScene extends Phaser.Scene {
         this.addGhostsCollideAction(this.pacman1);
 
         if (this.multiplayer) {
-            this.initPacman('pacman2');
-            this.pacman2.scoreText = this.add.text(this.textDistanceFromLeft + 250 , 440, '' , this.textStyle);
+            this.initPacman('pacman2', this.namePlayer2);
+            this.pacman2.scoreText = this.add.text(this.textDistanceFromLeft + 200 , 440, '' , this.textStyle);
             this.updateScore(this.pacman2);
             this.addCoinsCollideAction(this.pacman2);
             this.addGhostsCollideAction(this.pacman2);
@@ -348,7 +352,7 @@ export class GameScene extends Phaser.Scene {
             },
         };
 
-        this.textDistanceFromLeft        = 480;
+        this.textDistanceFromLeft        = 470;
         this.ghostHeight                 = 16;
         this.ghostWidth                  = 16;
         this.timeToEatAnswerDelay        = 30;
@@ -371,8 +375,9 @@ export class GameScene extends Phaser.Scene {
 
     }
 
-    initPacman(pacmanName) {
+    initPacman(pacmanName, playerName) {
         this[pacmanName] = this.add.sprite((14 * 16) + 8, (17 * 16) + 8, 'pacman', 2);
+        this[pacmanName].playerName = playerName;
 
         /* set collision for all tiles besides dots and empty tiles */
         this.layer.setCollisionByExclusion([this.safeTile,this.dotTile]);
@@ -466,7 +471,7 @@ export class GameScene extends Phaser.Scene {
     }
 
     updateScore(pacman) {
-        pacman.scoreText.text = 'Score: ' + pacman.score;
+        pacman.scoreText.text = 'Score ' + pacman.playerName + ': ' + pacman.score;
     }
 
     updateGhosts() {

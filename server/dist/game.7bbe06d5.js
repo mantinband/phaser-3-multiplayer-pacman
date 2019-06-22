@@ -128,7 +128,8 @@ var CST = {
   SCENES: {
     GAME: "GAME",
     QUESTION: "QUESTION",
-    MENU: "MENU"
+    MENU: "MENU",
+    INPUT_NAMES: 'INPUT_NAMES'
   }
 };
 exports.CST = CST;
@@ -688,8 +689,13 @@ function (_Phaser$Scene) {
 
   _createClass(GameScene, [{
     key: "init",
-    value: function init(multiplayer) {
-      this.multiplayer = multiplayer === true;
+    value: function init(config) {
+      this.multiplayer = config.multiplayer === true;
+      this.namePlayer1 = config.namePlayer1;
+
+      if (this.multiplayer) {
+        this.namePlayer2 = config.namePlayer2;
+      }
     }
   }, {
     key: "preload",
@@ -739,7 +745,7 @@ function (_Phaser$Scene) {
         frameRate: 10,
         repeat: 1
       });
-      this.initPacman('pacman1');
+      this.initPacman('pacman1', this.namePlayer1);
       this.pacman1.scoreText = this.add.text(this.textDistanceFromLeft, 440, '', this.textStyle);
       this.updateScore(this.pacman1);
       this.input.keyboard.on('keydown', function (eventName, event) {
@@ -793,8 +799,8 @@ function (_Phaser$Scene) {
       this.addGhostsCollideAction(this.pacman1);
 
       if (this.multiplayer) {
-        this.initPacman('pacman2');
-        this.pacman2.scoreText = this.add.text(this.textDistanceFromLeft + 250, 440, '', this.textStyle);
+        this.initPacman('pacman2', this.namePlayer2);
+        this.pacman2.scoreText = this.add.text(this.textDistanceFromLeft + 200, 440, '', this.textStyle);
         this.updateScore(this.pacman2);
         this.addCoinsCollideAction(this.pacman2);
         this.addGhostsCollideAction(this.pacman2);
@@ -1115,7 +1121,7 @@ function (_Phaser$Scene) {
           direction: Phaser.LEFT
         }
       };
-      this.textDistanceFromLeft = 480;
+      this.textDistanceFromLeft = 470;
       this.ghostHeight = 16;
       this.ghostWidth = 16;
       this.timeToEatAnswerDelay = 30;
@@ -1138,8 +1144,9 @@ function (_Phaser$Scene) {
     }
   }, {
     key: "initPacman",
-    value: function initPacman(pacmanName) {
+    value: function initPacman(pacmanName, playerName) {
       this[pacmanName] = this.add.sprite(14 * 16 + 8, 17 * 16 + 8, 'pacman', 2);
+      this[pacmanName].playerName = playerName;
       /* set collision for all tiles besides dots and empty tiles */
 
       this.layer.setCollisionByExclusion([this.safeTile, this.dotTile]);
@@ -1237,7 +1244,7 @@ function (_Phaser$Scene) {
   }, {
     key: "updateScore",
     value: function updateScore(pacman) {
-      pacman.scoreText.text = 'Score: ' + pacman.score;
+      pacman.scoreText.text = 'Score ' + pacman.playerName + ': ' + pacman.score;
     }
   }, {
     key: "updateGhosts",
@@ -1371,6 +1378,13 @@ function _inherits(subClass, superClass) { if (typeof superClass !== "function" 
 
 function _setPrototypeOf(o, p) { _setPrototypeOf = Object.setPrototypeOf || function _setPrototypeOf(o, p) { o.__proto__ = p; return o; }; return _setPrototypeOf(o, p); }
 
+var OPTIONS = {
+  SINGLE_PLAYER: 1,
+  MULTI_PLAYER: 2,
+  SCORE_BOARD: 3,
+  MANAGE_QUESTIONS: 4
+};
+
 var MenuScene =
 /*#__PURE__*/
 function (_Phaser$Scene) {
@@ -1401,6 +1415,7 @@ function (_Phaser$Scene) {
         fontSize: 50,
         color: "blue"
       };
+      this.add.text(this.distanceFromLeft, 60, 'MENU', this.textStyle);
       this.add.text(this.distanceFromLeft, this.distanceFromTop, 'single player', this.textStyle);
       this.add.text(this.distanceFromLeft, this.distanceFromTop + this.textHeight, 'multi player', this.textStyle);
       this.add.text(this.distanceFromLeft, this.distanceFromTop + 2 * this.textHeight, 'score board', this.textStyle);
@@ -1419,7 +1434,7 @@ function (_Phaser$Scene) {
       this.input.keyboard.on('keydown', function (eventName, event) {
         switch (eventName.key) {
           case 'ArrowDown':
-            if (this.option < 3) {
+            if (this.option < 4) {
               this.pacman.setY(this.pacman.y + this.textHeight);
               this.option++;
             }
@@ -1427,7 +1442,7 @@ function (_Phaser$Scene) {
             break;
 
           case 'ArrowUp':
-            if (this.option > 0) {
+            if (this.option > 1) {
               this.pacman.setY(this.pacman.y - this.textHeight);
               this.option--;
             }
@@ -1436,14 +1451,19 @@ function (_Phaser$Scene) {
 
           case 'Enter':
             switch (this.option) {
-              case 0:
-                this.scene.start(_CST.CST.SCENES.GAME);
+              case OPTIONS.SINGLE_PLAYER:
+                this.scene.start(_CST.CST.SCENES.INPUT_NAMES, 0xdc);
                 break;
 
-              case 1:
-                this.scene.start(_CST.CST.SCENES.GAME, true);
+              case OPTIONS.MULTI_PLAYER:
+                this.scene.start(_CST.CST.SCENES.INPUT_NAMES, true);
                 break;
+
+              default:
+                console.log('option ' + this.option + ' not yet supported');
             }
+
+            break;
 
           default:
             console.log('invalid button pressed: ' + eventName.key);
@@ -1456,7 +1476,7 @@ function (_Phaser$Scene) {
       this.distanceFromLeft = 320;
       this.distanceFromTop = 150;
       this.textHeight = 70;
-      this.option = 0;
+      this.option = 1;
     }
   }]);
 
@@ -1464,6 +1484,210 @@ function (_Phaser$Scene) {
 }(Phaser.Scene);
 
 exports.MenuScene = MenuScene;
+},{"../CST":"CST.js","./GameScene":"scenes/GameScene.js"}],"scenes/InputNamesScene.js":[function(require,module,exports) {
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.InputNamesScene = void 0;
+
+var _CST = require("../CST");
+
+var _GameScene = require("./GameScene");
+
+function _typeof(obj) { if (typeof Symbol === "function" && typeof Symbol.iterator === "symbol") { _typeof = function _typeof(obj) { return typeof obj; }; } else { _typeof = function _typeof(obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; }; } return _typeof(obj); }
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+function _defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } }
+
+function _createClass(Constructor, protoProps, staticProps) { if (protoProps) _defineProperties(Constructor.prototype, protoProps); if (staticProps) _defineProperties(Constructor, staticProps); return Constructor; }
+
+function _possibleConstructorReturn(self, call) { if (call && (_typeof(call) === "object" || typeof call === "function")) { return call; } return _assertThisInitialized(self); }
+
+function _assertThisInitialized(self) { if (self === void 0) { throw new ReferenceError("this hasn't been initialised - super() hasn't been called"); } return self; }
+
+function _getPrototypeOf(o) { _getPrototypeOf = Object.setPrototypeOf ? Object.getPrototypeOf : function _getPrototypeOf(o) { return o.__proto__ || Object.getPrototypeOf(o); }; return _getPrototypeOf(o); }
+
+function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function"); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, writable: true, configurable: true } }); if (superClass) _setPrototypeOf(subClass, superClass); }
+
+function _setPrototypeOf(o, p) { _setPrototypeOf = Object.setPrototypeOf || function _setPrototypeOf(o, p) { o.__proto__ = p; return o; }; return _setPrototypeOf(o, p); }
+
+var InputNamesScene =
+/*#__PURE__*/
+function (_Phaser$Scene) {
+  _inherits(InputNamesScene, _Phaser$Scene);
+
+  function InputNamesScene() {
+    _classCallCheck(this, InputNamesScene);
+
+    return _possibleConstructorReturn(this, _getPrototypeOf(InputNamesScene).call(this, {
+      key: _CST.CST.SCENES.INPUT_NAMES
+    }));
+  }
+
+  _createClass(InputNamesScene, [{
+    key: "init",
+    value: function init(multiplayer) {
+      this.multiplayer = multiplayer === true;
+    }
+  }, {
+    key: "preload",
+    value: function preload() {
+      this.load.spritesheet('pacman', 'pacman.png', {
+        frameWidth: 32,
+        frameHeight: 32
+      });
+      this.initStaticConfigurations();
+    }
+  }, {
+    key: "create",
+    value: function create() {
+      this.textStyle = {
+        fontFamily: '"Roboto Condensed"',
+        fontSize: 50,
+        color: "blue"
+      };
+      this.namePlayer1 = '';
+      this.basicTextPlayer1 = 'Enter player' + (this.multiplayer ? ' 1: ' : '\'s name: ');
+      this.textPlayer1 = this.add.text(this.distanceFromLeft, this.distanceFromTop, this.basicTextPlayer1, this.textStyle);
+      this.add.text(this.distanceFromLeft, 400, 'back', this.textStyle);
+
+      if (this.multiplayer) {
+        this.basicTextPlayer2 = 'Enter player 2: ';
+        this.textPlayer2 = this.add.text(this.distanceFromLeft, this.textHeight + this.distanceFromTop, this.basicTextPlayer2, this.textStyle);
+        this.namePlayer2 = '';
+      }
+
+      this.pacman = this.add.sprite(this.distanceFromLeft - 30, this.distanceFromTop + 28, 'pacman', 2);
+      this.anims.create({
+        key: 'moving',
+        frames: this.anims.generateFrameNumbers('pacman', {
+          frames: [2, 1, 0, 1]
+        }),
+        frameRate: 16,
+        repeat: -1
+      });
+      this.pacman.setScale(1.5);
+      this.pacman.anims.play('moving');
+      this.input.keyboard.on('keydown', function (eventName, event) {
+        if (eventName.key === 'Enter') {
+          if (this.pacmanPointingAtPlayer === -1) {
+            this.multiplayer = false;
+            this.scene.start(_CST.CST.SCENES.MENU);
+            this.scene.stop(_CST.CST.SCENES.INPUT_NAMES);
+          } else {
+            this.scene.start(_CST.CST.SCENES.GAME, {
+              'multiplayer': this.multiplayer,
+              'namePlayer1': this.namePlayer1,
+              'namePlayer2': this.namePlayer2
+            });
+          }
+        }
+
+        if (this.multiplayer) {
+          switch (eventName.key) {
+            case 'ArrowDown':
+              switch (this.pacmanPointingAtPlayer) {
+                case 1:
+                  this.pacmanPointingAtPlayer = 2;
+                  this.pacman.setY(this.pacman.y + this.textHeight);
+                  break;
+
+                case 2:
+                  this.pacman.setY(425);
+                  this.pacmanPointingAtPlayer = -1;
+                  break;
+
+                default:
+                  break;
+              }
+
+              break;
+
+            case 'ArrowUp':
+              switch (this.pacmanPointingAtPlayer) {
+                case 2:
+                  this.pacmanPointingAtPlayer = 1;
+                  this.pacman.setY(this.pacman.y - this.textHeight);
+                  break;
+
+                case -1:
+                  this.pacmanPointingAtPlayer = 2;
+                  this.pacman.setY(this.distanceFromTop + 28 + this.textHeight);
+                  break;
+
+                default:
+                  break;
+              }
+
+              break;
+
+            default:
+              break;
+          }
+        } else {
+          switch (eventName.key) {
+            case 'ArrowDown':
+              this.pacman.setY(425);
+              this.pacmanPointingAtPlayer = -1;
+              break;
+
+            case 'ArrowUp':
+              this.pacmanPointingAtPlayer = 1;
+              this.pacman.setY(this.distanceFromTop + 28);
+              break;
+
+            default:
+              break;
+          }
+        }
+
+        if (this.pacmanPointingAtPlayer !== -1) {
+          if (eventName.key >= 'a' && eventName.key <= 'z' || eventName.key >= '1' && eventName.key <= '9') {
+            if (this.pacmanPointingAtPlayer === 1) {
+              if (this.namePlayer1.length < this.maxNameLength) {
+                this.namePlayer1 += eventName.key;
+                this.textPlayer1.text = this.basicTextPlayer1 + this.namePlayer1;
+              }
+            } else {
+              if (this.namePlayer2.length < this.maxNameLength) {
+                this.namePlayer2 += eventName.key;
+                this.textPlayer2.text = this.basicTextPlayer2 + this.namePlayer2;
+              }
+            }
+          } else if (eventName.key === 'Backspace') {
+            if (this.pacmanPointingAtPlayer === 1) {
+              if (this.namePlayer1.length) {
+                this.namePlayer1 = this.namePlayer1.slice(0, -1);
+                this.textPlayer1.text = this.basicTextPlayer1 + this.namePlayer1;
+              }
+            } else {
+              if (this.namePlayer2.length) {
+                this.namePlayer2 = this.namePlayer2.slice(0, -1);
+                this.textPlayer2.text = this.basicTextPlayer2 + this.namePlayer2;
+              }
+            }
+          }
+        }
+      }, this);
+    }
+  }, {
+    key: "initStaticConfigurations",
+    value: function initStaticConfigurations() {
+      this.distanceFromLeft = 60;
+      this.distanceFromTop = 150;
+      this.textHeight = 70;
+      this.pacmanPointingAtPlayer = 1;
+      this.maxNameLength = 6;
+    }
+  }]);
+
+  return InputNamesScene;
+}(Phaser.Scene);
+
+exports.InputNamesScene = InputNamesScene;
 },{"../CST":"CST.js","./GameScene":"scenes/GameScene.js"}],"game.js":[function(require,module,exports) {
 "use strict";
 
@@ -1473,15 +1697,17 @@ var _QuestionScene = require("./scenes/QuestionScene.js");
 
 var _MenuScene = require("./scenes/MenuScene.js");
 
+var _InputNamesScene = require("./scenes/InputNamesScene");
+
 var game = new Phaser.Game({
   width: 448 * 2,
   height: 496,
-  scene: [_MenuScene.MenuScene, _GameScene.GameScene, _QuestionScene.QuestionScene],
+  scene: [_MenuScene.MenuScene, _InputNamesScene.InputNamesScene, _GameScene.GameScene, _QuestionScene.QuestionScene],
   physics: {
     default: 'arcade'
   }
 });
-},{"./scenes/GameScene.js":"scenes/GameScene.js","./scenes/QuestionScene.js":"scenes/QuestionScene.js","./scenes/MenuScene.js":"scenes/MenuScene.js"}],"../node_modules/parcel-bundler/src/builtins/hmr-runtime.js":[function(require,module,exports) {
+},{"./scenes/GameScene.js":"scenes/GameScene.js","./scenes/QuestionScene.js":"scenes/QuestionScene.js","./scenes/MenuScene.js":"scenes/MenuScene.js","./scenes/InputNamesScene":"scenes/InputNamesScene.js"}],"../node_modules/parcel-bundler/src/builtins/hmr-runtime.js":[function(require,module,exports) {
 var global = arguments[3];
 var OVERLAY_ID = '__parcel__error__overlay__';
 var OldModule = module.bundle.Module;
@@ -1509,7 +1735,7 @@ var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var hostname = "" || location.hostname;
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-  var ws = new WebSocket(protocol + '://' + hostname + ':' + "40365" + '/');
+  var ws = new WebSocket(protocol + '://' + hostname + ':' + "42123" + '/');
 
   ws.onmessage = function (event) {
     checkedAssets = {};

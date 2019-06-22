@@ -1,5 +1,12 @@
 import {CST} from "../CST";
-import {GameScene} from "./GameScene";
+import {InputNamesScene} from "./GameScene";
+
+const OPTIONS = {
+     SINGLE_PLAYER    : 1,
+     MULTI_PLAYER     : 2,
+     SCORE_BOARD      : 3,
+     MANAGE_QUESTIONS : 4
+};
 
 export class MenuScene extends Phaser.Scene {
     constructor() {
@@ -15,6 +22,7 @@ export class MenuScene extends Phaser.Scene {
             fontSize : 50,
             color : "blue",
         };
+        this.add.text(this.distanceFromLeft, 60, 'MENU' , this.textStyle);
         this.add.text(this.distanceFromLeft, this.distanceFromTop, 'single player' , this.textStyle);
         this.add.text(this.distanceFromLeft, this.distanceFromTop + this.textHeight, 'multi player' , this.textStyle);
         this.add.text(this.distanceFromLeft, this.distanceFromTop + 2*this.textHeight, 'score board' , this.textStyle);
@@ -33,26 +41,29 @@ export class MenuScene extends Phaser.Scene {
         this.input.keyboard.on('keydown', function (eventName, event) {
             switch (eventName.key) {
                 case 'ArrowDown':
-                    if (this.option < 3) {
+                    if (this.option < 4) {
                         this.pacman.setY(this.pacman.y + this.textHeight);
                         this.option++;
                     }
                     break;
                 case 'ArrowUp':
-                    if (this.option > 0) {
+                    if (this.option > 1) {
                         this.pacman.setY(this.pacman.y - this.textHeight);
                         this.option--;
                     }
                     break;
                 case 'Enter':
                     switch (this.option) {
-                        case 0:
-                            this.scene.start(CST.SCENES.GAME);
+                        case OPTIONS.SINGLE_PLAYER:
+                            this.scene.start(CST.SCENES.INPUT_NAMES, 0xdc);
                             break;
-                        case 1:
-                            this.scene.start(CST.SCENES.GAME, true);
+                        case OPTIONS.MULTI_PLAYER:
+                            this.scene.start(CST.SCENES.INPUT_NAMES, true);
                             break;
+                        default:
+                            console.log('option ' + this.option + ' not yet supported')
                     }
+                    break;
                 default:
                     console.log('invalid button pressed: ' + eventName.key);
             }
@@ -62,6 +73,6 @@ export class MenuScene extends Phaser.Scene {
         this.distanceFromLeft = 320;
         this.distanceFromTop = 150;
         this.textHeight = 70;
-        this.option = 0;
+        this.option = 1;
     }
 }
