@@ -23,6 +23,8 @@ export class GameScene extends Phaser.Scene {
     }
 
     create() {
+        this.scoreText = this.add.text(this.textDistanceFromLeft , 440, '' , this.textStyle);
+        this.updateScore();
         this.map = this.make.tilemap({key:'map'});
         const tileset = this.map.addTilesetImage('pacman-tiles', 'tiles');
         this.layer = this.map.createDynamicLayer('Pacman', tileset);
@@ -31,9 +33,9 @@ export class GameScene extends Phaser.Scene {
 
         this.input.keyboard.on('keydown', function (eventName, event) {
             switch (eventName.key) {
-                case 'ArrowDown':   this.pacman.nextDirection = Phaser.DOWN; break;
-                case 'ArrowUp':     this.pacman.nextDirection = Phaser.UP; break;
-                case 'ArrowLeft':   this.pacman.nextDirection = Phaser.LEFT; break;
+                case 'ArrowDown':   this.pacman.nextDirection = Phaser.DOWN;  break;
+                case 'ArrowUp':     this.pacman.nextDirection = Phaser.UP;    break;
+                case 'ArrowLeft':   this.pacman.nextDirection = Phaser.LEFT;  break;
                 case 'ArrowRight':  this.pacman.nextDirection = Phaser.RIGHT; break;
                 default: console.log('invalid button pressed: ' + eventName.key);
             }
@@ -156,9 +158,9 @@ export class GameScene extends Phaser.Scene {
         for (let spot in this.coins) {
             this.physics.add.collider(this.pacman, this.coins[spot].coin, function () {
                 this.coins[spot].coin.destroy();
-                this.scene.launch(CST.SCENES.QUESTION);
+                this.scene.launch(CST.SCENES.QUESTION, 'hello');
                 this.scene.pause();
-                this.timeToEatAnswer = 10;
+                this.timeToEatAnswer = 14;
                 for (let ghost in this.ghosts) {
                     this.ghosts[ghost].ghost.anims.stop();
                     this.ghosts[ghost].ghost.anims.play(ghost + 'Blue');
@@ -166,6 +168,10 @@ export class GameScene extends Phaser.Scene {
                 this.updateDirection(this.pacman, false);
             }, null, this);
         }
+    }
+
+    indexToPixel(index) {
+        return index*16+8;
     }
 
     addGhosts() {
@@ -207,7 +213,7 @@ export class GameScene extends Phaser.Scene {
                 frameRate: 10,
                 repeat: -1
             });
-            this.ghosts[ghost].ghost = this.add.sprite(this.ghosts[ghost].startX*16+8, this.ghosts[ghost].startY*16+8, ghost, 0);
+            this.ghosts[ghost].ghost = this.add.sprite(this.indexToPixel(this.ghosts[ghost].startX), this.indexToPixel(this.ghosts[ghost].startY), ghost, 0);
             this.ghosts[ghost].ghost.name = ghost;
             this.ghosts[ghost].ghost.setScale(1.5);
             this.ghosts[ghost].ghost.anims.play(ghost + 'Right');
@@ -221,31 +227,29 @@ export class GameScene extends Phaser.Scene {
     }
 
     addGhostsCollideAction() {
-        // for (let ghost in this.ghosts) {
-            // this.physics.add.collider(this.pacman, this.ghosts[ghost].ghost, function () {
-            //     if (this.timeToEatAnswer) {
-                    /* TODO: need to bring answer array, and correct answer from question scene */
-                    // const answers = QuestionScene.answers;
-                    // const correctAnswer = QUESTIONS[QuestionScene.questionIndex].correct_answer;
-                    // switch (this.ghosts[ghost].ghost.name) {
-                    //     case 'blinky':
-                    //         alert((answers[0] === correctAnswer) ? 'correct!' : "incorrect!");
-                    //         break;
-                    //     case 'clyde' :
-                    //         alert((answers[1] === correctAnswer) ? 'correct!' : "incorrect!");
-                    //         break;
-                    //     case 'inky'  :
-                    //         alert((answers[2] === correctAnswer) ? 'correct!' : "incorrect!");
-                    //         break;
-                    //     case 'pinky' :
-                    //         alert((answers[3] === correctAnswer) ? 'correct!' : "incorrect!");
-                    //         break;
-
-                // } else {
-                //     alert('game over');
-                // }
-            // }, null, this);
-        // }
+        for (let ghost in this.ghosts) {
+            this.physics.add.overlap(this.pacman, this.ghosts[ghost].ghost, function () {
+                if (this.timeToEatAnswer) {
+                    this.ghosts[ghost].ghost.setX(this.indexToPixel(this.ghosts[ghost].startX));
+                    this.ghosts[ghost].ghost.setY(this.indexToPixel(this.ghosts[ghost].startY));
+                    this.ghosts[ghost].ghost.anims.play(ghost + 'Right');
+                    this.ghosts[ghost].ghost.direction = Phaser.RIGHT;
+                    this.ghosts[ghost].ghost.nextDirection = Phaser.RIGHT;
+                    this.updateDirection(this.ghosts[ghost].ghost, true);
+                    console.log(GameScene.question.answers[this.ghosts[ghost].index]);
+                    if (GameScene.question.answers[this.ghosts[ghost].index] === GameScene.question.correctAnswer) {
+                        alert('correct');
+                        this.score += GameScene.question.getCorrectAnswerPoints();
+                    } else {
+                        alert('wrong');
+                        this.score -= GameScene.question.getWrongAnswerPoints();
+                    }
+                } else {
+                    alert('game over');
+                    this.scene.restart();
+                }
+            }, null, this);
+        }
 
     }
 
@@ -254,20 +258,31 @@ export class GameScene extends Phaser.Scene {
     }
 
     initStaticConfigurations() {
+        this.textStyle = {
+            fontFamily: '"Roboto Condensed"',
+            fontSize : 30,
+            color : "blue",
+            width : 400
+        };
+
         this.ghosts = {
             blinky: {
+                index  : 0,
                 startX : 13,
                 startY : 11,
             },
             inky: {
+                index  : 1,
                 startX : 11,
                 startY : 11,
             },
             pinky: {
+                index  : 2,
                 startX : 13,
                 startY : 11,
             },
             clyde: {
+                index  : 3,
                 startX : 15,
                 startY : 11,
             },
@@ -296,6 +311,8 @@ export class GameScene extends Phaser.Scene {
             },
         };
 
+        this.textDistanceFromLeft        = 480;
+        this.score                       = 0;
         this.ghostHeight                 = 16;
         this.ghostWidth                  = 16;
         this.timeToEatAnswerDelay        = 30;
@@ -399,6 +416,8 @@ export class GameScene extends Phaser.Scene {
 
         if (this.currentTile.index === this.dotTile) {
             this.dotCount++;
+            this.score++;
+            this.updateScore();
             this.currentTile.index = this.safeTile;
 
             if (this.dotCount === this.numTotalDots) {
@@ -422,6 +441,10 @@ export class GameScene extends Phaser.Scene {
         }
     }
 
+    updateScore() {
+        this.scoreText.text = 'Score: ' + this.score;
+    }
+
     updateGhosts() {
         for (var ghost in this.ghosts) {
             const ghostX = this.ghosts[ghost].ghost.x;
@@ -437,6 +460,9 @@ export class GameScene extends Phaser.Scene {
                               this.ghosts[ghost].ghost.nextDirection !== this.ghosts[ghost].ghost.direction &&
                               this.canMoveInDirection(this.ghosts[ghost].currentTileX, this.ghosts[ghost].currentTileY, this.ghosts[ghost].ghost.nextDirection)) {
                 this.ghosts[ghost].ghost.direction = this.ghosts[ghost].ghost.nextDirection;
+                this.updateDirection(this.ghosts[ghost].ghost, true);
+            }
+            if (this.timeToEatAnswer === 0) {
                 this.updateDirection(this.ghosts[ghost].ghost, true);
             }
         }
@@ -464,5 +490,29 @@ export class GameScene extends Phaser.Scene {
         }
         this.ghostCheckDirectionsCounter++;
     }
+    static setQuestion(question, answers, correctAnswer, difficulty) {
+        GameScene.question = new Question(question, answers, correctAnswer, difficulty);
+        console.log('correct answer: ' + GameScene.question.correctAnswer);
+    }
 
+}
+
+class Question {
+    constructor(question, answers, correctAnswer, difficulty) {
+        this.question = question;
+        this.answers = answers;
+        this.correctAnswer= correctAnswer;
+        this.difficulty = difficulty;
+        this.points = { 'easy'   : 100,
+                        'medium' : 200,
+                        'hard'   : 400 };
+    }
+
+    getCorrectAnswerPoints() {
+        return this.points[this.difficulty];
+    }
+
+    getWrongAnswerPoints() {
+        return this.points[this.difficulty]/2;
+    }
 }

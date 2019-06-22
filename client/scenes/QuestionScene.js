@@ -1,14 +1,13 @@
 import {CST} from "../CST";
 import {QUESTIONS} from "../../assets/Questions.js";
+import {GameScene} from "./GameScene";
 
 export class QuestionScene extends Phaser.Scene {
     constructor() {
         super({key: CST.SCENES.QUESTION})
     }
-
     preload() {
-        this.ghosts=[ 'blinky', 'clyde', 'inky', 'pinky'];
-        this.points={ 'easy' : 100, 'medium' : 200, 'hard' : 400 };
+        this.ghosts=[ 'blinky', 'inky', 'pinky', 'clyde'];
         this.ghostHeight = 16;
         this.ghostWidth = 16;
 
@@ -47,11 +46,9 @@ export class QuestionScene extends Phaser.Scene {
                 frameRate: 7,
                 repeat: -1
             });
-            this.add.sprite(this.distanceFromLeft + 20, 270 + i*(this.ghostHeight*3+5), this.ghosts[i], 0).anims.play(this.ghosts[i] + 'Animation').setScale(3);
+            this.add.sprite(this.distanceFromLeft + 20, 250 + i*(this.ghostHeight*3+5), this.ghosts[i], 0).anims.play(this.ghosts[i] + 'Animation').setScale(3);
         }
-        this.events.on('resume', function () {
-            alert('i have been resumed!');
-        });
+        GameScene.setQuestion(this.question, this.answers, QUESTIONS[this.questionIndex].correct_answer, this.questionDifficulty);
     }
     update() {
         if (++this.delayCount === this.delay) {
@@ -68,7 +65,7 @@ export class QuestionScene extends Phaser.Scene {
             } else { //print answer
                 if (this.printingAnswer <= 4) {
                     this.add.text(this.distanceFromLeft + this.ghostWidth*3 + 10,
-                        270 + (this.printingAnswer-1)*(this.ghostHeight*3+5) -10, this.answers[this.printingAnswer-1], this.textStyle);
+                        250 + (this.printingAnswer-1)*(this.ghostHeight*3+5) -10, this.answers[this.printingAnswer-1], this.textStyle);
                 }
                 this.printingAnswer++;
                 if (this.printingAnswer === 40) {

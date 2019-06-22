@@ -502,6 +502,8 @@ var _CST = require("../CST");
 
 var _Questions = require("../../assets/Questions.js");
 
+var _GameScene = require("./GameScene");
+
 function _typeof(obj) { if (typeof Symbol === "function" && typeof Symbol.iterator === "symbol") { _typeof = function _typeof(obj) { return typeof obj; }; } else { _typeof = function _typeof(obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; }; } return _typeof(obj); }
 
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
@@ -536,7 +538,7 @@ function (_Phaser$Scene) {
   _createClass(QuestionScene, [{
     key: "preload",
     value: function preload() {
-      this.ghosts = ['blinky', 'clyde', 'inky', 'pinky'];
+      this.ghosts = ['blinky', 'inky', 'pinky', 'clyde'];
       this.ghostHeight = 16;
       this.ghostWidth = 16;
 
@@ -558,6 +560,7 @@ function (_Phaser$Scene) {
         width: 400
       };
       this.question = _Questions.QUESTIONS[this.questionIndex].question;
+      this.questionDifficulty = _Questions.QUESTIONS[this.questionIndex].difficulty;
       this.printingQuestion = true;
       this.printingAnswer = -1;
       this.distanceFromLeft = 480;
@@ -578,12 +581,10 @@ function (_Phaser$Scene) {
           frameRate: 7,
           repeat: -1
         });
-        this.add.sprite(this.distanceFromLeft + 20, 270 + i * (this.ghostHeight * 3 + 5), this.ghosts[i], 0).anims.play(this.ghosts[i] + 'Animation').setScale(3);
+        this.add.sprite(this.distanceFromLeft + 20, 250 + i * (this.ghostHeight * 3 + 5), this.ghosts[i], 0).anims.play(this.ghosts[i] + 'Animation').setScale(3);
       }
 
-      this.events.on('resume', function () {
-        alert('i have been resumed!');
-      });
+      _GameScene.GameScene.setQuestion(this.question, this.answers, _Questions.QUESTIONS[this.questionIndex].correct_answer, this.questionDifficulty);
     }
   }, {
     key: "update",
@@ -604,7 +605,7 @@ function (_Phaser$Scene) {
         } else {
           //print answer
           if (this.printingAnswer <= 4) {
-            this.add.text(this.distanceFromLeft + this.ghostWidth * 3 + 10, 270 + (this.printingAnswer - 1) * (this.ghostHeight * 3 + 5) - 10, this.answers[this.printingAnswer - 1], this.textStyle);
+            this.add.text(this.distanceFromLeft + this.ghostWidth * 3 + 10, 250 + (this.printingAnswer - 1) * (this.ghostHeight * 3 + 5) - 10, this.answers[this.printingAnswer - 1], this.textStyle);
           }
 
           this.printingAnswer++;
@@ -639,7 +640,7 @@ function (_Phaser$Scene) {
 }(Phaser.Scene);
 
 exports.QuestionScene = QuestionScene;
-},{"../CST":"CST.js","../../assets/Questions.js":"../assets/Questions.js"}],"scenes/GameScene.js":[function(require,module,exports) {
+},{"../CST":"CST.js","../../assets/Questions.js":"../assets/Questions.js","./GameScene":"scenes/GameScene.js"}],"scenes/GameScene.js":[function(require,module,exports) {
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -711,6 +712,8 @@ function (_Phaser$Scene) {
   }, {
     key: "create",
     value: function create() {
+      this.scoreText = this.add.text(this.textDistanceFromLeft, 440, '', this.textStyle);
+      this.updateScore();
       this.map = this.make.tilemap({
         key: 'map'
       });
@@ -881,9 +884,9 @@ function (_Phaser$Scene) {
       var _loop = function _loop(spot) {
         _this.physics.add.collider(_this.pacman, _this.coins[spot].coin, function () {
           this.coins[spot].coin.destroy();
-          this.scene.launch(_CST.CST.SCENES.QUESTION);
+          this.scene.launch(_CST.CST.SCENES.QUESTION, 'hello');
           this.scene.pause();
-          this.timeToEatAnswer = 10;
+          this.timeToEatAnswer = 14;
 
           for (var ghost in this.ghosts) {
             this.ghosts[ghost].ghost.anims.stop();
@@ -897,6 +900,11 @@ function (_Phaser$Scene) {
       for (var spot in this.coins) {
         _loop(spot);
       }
+    }
+  }, {
+    key: "indexToPixel",
+    value: function indexToPixel(index) {
+      return index * 16 + 8;
     }
   }, {
     key: "addGhosts",
@@ -951,7 +959,7 @@ function (_Phaser$Scene) {
           frameRate: 10,
           repeat: -1
         });
-        this.ghosts[ghost].ghost = this.add.sprite(this.ghosts[ghost].startX * 16 + 8, this.ghosts[ghost].startY * 16 + 8, ghost, 0);
+        this.ghosts[ghost].ghost = this.add.sprite(this.indexToPixel(this.ghosts[ghost].startX), this.indexToPixel(this.ghosts[ghost].startY), ghost, 0);
         this.ghosts[ghost].ghost.name = ghost;
         this.ghosts[ghost].ghost.setScale(1.5);
         this.ghosts[ghost].ghost.anims.play(ghost + 'Right');
@@ -965,31 +973,37 @@ function (_Phaser$Scene) {
     }
   }, {
     key: "addGhostsCollideAction",
-    value: function addGhostsCollideAction() {// for (let ghost in this.ghosts) {
-      // this.physics.add.collider(this.pacman, this.ghosts[ghost].ghost, function () {
-      //     if (this.timeToEatAnswer) {
+    value: function addGhostsCollideAction() {
+      var _this2 = this;
 
-      /* TODO: need to bring answer array, and correct answer from question scene */
-      // const answers = QuestionScene.answers;
-      // const correctAnswer = QUESTIONS[QuestionScene.questionIndex].correct_answer;
-      // switch (this.ghosts[ghost].ghost.name) {
-      //     case 'blinky':
-      //         alert((answers[0] === correctAnswer) ? 'correct!' : "incorrect!");
-      //         break;
-      //     case 'clyde' :
-      //         alert((answers[1] === correctAnswer) ? 'correct!' : "incorrect!");
-      //         break;
-      //     case 'inky'  :
-      //         alert((answers[2] === correctAnswer) ? 'correct!' : "incorrect!");
-      //         break;
-      //     case 'pinky' :
-      //         alert((answers[3] === correctAnswer) ? 'correct!' : "incorrect!");
-      //         break;
-      // } else {
-      //     alert('game over');
-      // }
-      // }, null, this);
-      // }
+      var _loop2 = function _loop2(ghost) {
+        _this2.physics.add.overlap(_this2.pacman, _this2.ghosts[ghost].ghost, function () {
+          if (this.timeToEatAnswer) {
+            this.ghosts[ghost].ghost.setX(this.indexToPixel(this.ghosts[ghost].startX));
+            this.ghosts[ghost].ghost.setY(this.indexToPixel(this.ghosts[ghost].startY));
+            this.ghosts[ghost].ghost.anims.play(ghost + 'Right');
+            this.ghosts[ghost].ghost.direction = Phaser.RIGHT;
+            this.ghosts[ghost].ghost.nextDirection = Phaser.RIGHT;
+            this.updateDirection(this.ghosts[ghost].ghost, true);
+            console.log(GameScene.question.answers[this.ghosts[ghost].index]);
+
+            if (GameScene.question.answers[this.ghosts[ghost].index] === GameScene.question.correctAnswer) {
+              alert('correct');
+              this.score += GameScene.question.getCorrectAnswerPoints();
+            } else {
+              alert('wrong');
+              this.score -= GameScene.question.getWrongAnswerPoints();
+            }
+          } else {
+            alert('game over');
+            this.scene.restart();
+          }
+        }, null, _this2);
+      };
+
+      for (var ghost in this.ghosts) {
+        _loop2(ghost);
+      }
     }
   }, {
     key: "randInt",
@@ -999,20 +1013,30 @@ function (_Phaser$Scene) {
   }, {
     key: "initStaticConfigurations",
     value: function initStaticConfigurations() {
+      this.textStyle = {
+        fontFamily: '"Roboto Condensed"',
+        fontSize: 30,
+        color: "blue",
+        width: 400
+      };
       this.ghosts = {
         blinky: {
+          index: 0,
           startX: 13,
           startY: 11
         },
         inky: {
+          index: 1,
           startX: 11,
           startY: 11
         },
         pinky: {
+          index: 2,
           startX: 13,
           startY: 11
         },
         clyde: {
+          index: 3,
           startX: 15,
           startY: 11
         }
@@ -1039,6 +1063,8 @@ function (_Phaser$Scene) {
           direction: Phaser.LEFT
         }
       };
+      this.textDistanceFromLeft = 480;
+      this.score = 0;
       this.ghostHeight = 16;
       this.ghostWidth = 16;
       this.timeToEatAnswerDelay = 30;
@@ -1147,6 +1173,8 @@ function (_Phaser$Scene) {
 
       if (this.currentTile.index === this.dotTile) {
         this.dotCount++;
+        this.score++;
+        this.updateScore();
         this.currentTile.index = this.safeTile;
 
         if (this.dotCount === this.numTotalDots) {
@@ -1171,9 +1199,14 @@ function (_Phaser$Scene) {
       }
     }
   }, {
+    key: "updateScore",
+    value: function updateScore() {
+      this.scoreText.text = 'Score: ' + this.score;
+    }
+  }, {
     key: "updateGhosts",
     value: function updateGhosts() {
-      var _this2 = this;
+      var _this3 = this;
 
       for (var ghost in this.ghosts) {
         var ghostX = this.ghosts[ghost].ghost.x;
@@ -1186,32 +1219,36 @@ function (_Phaser$Scene) {
           this.ghosts[ghost].ghost.direction = this.ghosts[ghost].ghost.nextDirection;
           this.updateDirection(this.ghosts[ghost].ghost, true);
         }
+
+        if (this.timeToEatAnswer === 0) {
+          this.updateDirection(this.ghosts[ghost].ghost, true);
+        }
       }
 
       if (this.ghostCheckDirectionsCounter === this.ghostCheckDirectionsDelay) {
-        var _loop2 = function _loop2() {
+        var _loop3 = function _loop3() {
           var ghostAvailableDirections = [];
 
-          var nextTileX = _this2.getNextTile(_this2.ghosts[ghost].currentTileX, _this2.ghosts[ghost].ghost.direction, 'X');
+          var nextTileX = _this3.getNextTile(_this3.ghosts[ghost].currentTileX, _this3.ghosts[ghost].ghost.direction, 'X');
 
-          var nextTileY = _this2.getNextTile(_this2.ghosts[ghost].currentTileY, _this2.ghosts[ghost].ghost.direction, 'Y');
+          var nextTileY = _this3.getNextTile(_this3.ghosts[ghost].currentTileY, _this3.ghosts[ghost].ghost.direction, 'Y');
 
           var directions = [Phaser.LEFT, Phaser.RIGHT, Phaser.UP, Phaser.DOWN];
           directions.forEach(function (direction) {
             if (direction !== this.getOppositeDirection(this.ghosts[ghost].ghost.direction) && this.canMoveInDirection(nextTileX, nextTileY, direction)) {
               ghostAvailableDirections.push(direction);
             }
-          }, _this2);
+          }, _this3);
 
           if (ghostAvailableDirections.length) {
-            _this2.ghosts[ghost].ghost.nextDirection = ghostAvailableDirections[_this2.randInt(0, ghostAvailableDirections.length)];
+            _this3.ghosts[ghost].ghost.nextDirection = ghostAvailableDirections[_this3.randInt(0, ghostAvailableDirections.length)];
           } else {
-            _this2.ghosts[ghost].ghost.nextDirection = _this2.getOppositeDirection(_this2.ghosts[ghost].ghost.direction);
+            _this3.ghosts[ghost].ghost.nextDirection = _this3.getOppositeDirection(_this3.ghosts[ghost].ghost.direction);
           }
         };
 
         for (var ghost in this.ghosts) {
-          _loop2();
+          _loop3();
         }
 
         this.ghostCheckDirectionsCounter = 0;
@@ -1219,12 +1256,50 @@ function (_Phaser$Scene) {
 
       this.ghostCheckDirectionsCounter++;
     }
+  }], [{
+    key: "setQuestion",
+    value: function setQuestion(question, answers, correctAnswer, difficulty) {
+      GameScene.question = new Question(question, answers, correctAnswer, difficulty);
+      console.log('correct answer: ' + GameScene.question.correctAnswer);
+    }
   }]);
 
   return GameScene;
 }(Phaser.Scene);
 
 exports.GameScene = GameScene;
+
+var Question =
+/*#__PURE__*/
+function () {
+  function Question(question, answers, correctAnswer, difficulty) {
+    _classCallCheck(this, Question);
+
+    this.question = question;
+    this.answers = answers;
+    this.correctAnswer = correctAnswer;
+    this.difficulty = difficulty;
+    this.points = {
+      'easy': 100,
+      'medium': 200,
+      'hard': 400
+    };
+  }
+
+  _createClass(Question, [{
+    key: "getCorrectAnswerPoints",
+    value: function getCorrectAnswerPoints() {
+      return this.points[this.difficulty];
+    }
+  }, {
+    key: "getWrongAnswerPoints",
+    value: function getWrongAnswerPoints() {
+      return this.points[this.difficulty] / 2;
+    }
+  }]);
+
+  return Question;
+}();
 },{"../CST":"CST.js","./QuestionScene":"scenes/QuestionScene.js","../../assets/Questions":"../assets/Questions.js"}],"game.js":[function(require,module,exports) {
 "use strict";
 
@@ -1268,7 +1343,7 @@ var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var hostname = "" || location.hostname;
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-  var ws = new WebSocket(protocol + '://' + hostname + ':' + "39571" + '/');
+  var ws = new WebSocket(protocol + '://' + hostname + ':' + "39789" + '/');
 
   ws.onmessage = function (event) {
     checkedAssets = {};
