@@ -1,4 +1,4 @@
-export const QUESTIONS = [
+export var QUESTIONS = [
         {
             "category": "Entertainment: Video Games",
             "type": "multiple",
@@ -597,6 +597,6 @@ export const QUESTIONS = [
                 "Redwood City, California",
                 "Redmond, Washington",
                 "Santa Monica, CA"
-            ]
+             ]
         }
 ];

@@ -27,7 +27,7 @@ export class MenuScene extends Phaser.Scene {
         this.add.text(this.distanceFromLeft, this.distanceFromTop, 'single player' , this.textStyle);
         this.add.text(this.distanceFromLeft, this.distanceFromTop + this.textHeight, 'multi player' , this.textStyle);
         this.add.text(this.distanceFromLeft, this.distanceFromTop + 2*this.textHeight, 'score board' , this.textStyle);
-        this.add.text(this.distanceFromLeft, this.distanceFromTop + 3*this.textHeight, 'manage questions' , this.textStyle);
+        this.add.text(this.distanceFromLeft, this.distanceFromTop + 3*this.textHeight, 'add questions' , this.textStyle);
 
         /* add the moving pacman */
         this.pacman = this.add.sprite(this.distanceFromLeft - 30, this.distanceFromTop + 28, 'pacman', 2);
@@ -64,6 +64,12 @@ export class MenuScene extends Phaser.Scene {
                             break;
                         case OPTIONS.MULTI_PLAYER:
                             this.scene.start(CST.SCENES.INPUT_NAMES, true);
+                            break;
+                        case OPTIONS.SCORE_BOARD:
+                            this.scene.start(CST.SCENES.SCORE_BOARD);
+                            break;
+                        case OPTIONS.MANAGE_QUESTIONS:
+                            this.scene.start(CST.SCENES.MANAGE_QUESTIONS);
                             break;
                         default:
                             console.log('option ' + this.option + ' not yet supported')
