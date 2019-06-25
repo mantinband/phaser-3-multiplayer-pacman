@@ -22,8 +22,14 @@ export class MenuScene extends Phaser.Scene {
             fontSize : 50,
             color : "blue",
         };
+        this.titleStyle = {
+            fontFamily: '"Roboto Condensed"',
+            fontSize : 90,
+            color : "blue",
+            bold : "true",
+        };
         /* add menu options to screen */
-        this.add.text(this.distanceFromLeft, 60, 'MENU' , this.textStyle);
+        this.add.text(this.distanceFromLeft - 10, 40, 'MENU' , this.titleStyle);
         this.add.text(this.distanceFromLeft, this.distanceFromTop, 'single player' , this.textStyle);
         this.add.text(this.distanceFromLeft, this.distanceFromTop + this.textHeight, 'multi player' , this.textStyle);
         this.add.text(this.distanceFromLeft, this.distanceFromTop + 2*this.textHeight, 'score board' , this.textStyle);
@@ -81,8 +87,8 @@ export class MenuScene extends Phaser.Scene {
         }, this);
     }
     initStaticConfigurations() {
-        this.distanceFromLeft = 320;
-        this.distanceFromTop = 150;
+        this.distanceFromLeft = 300;
+        this.distanceFromTop = 210;
         this.textHeight = 70;
         this.option = 1;
     }

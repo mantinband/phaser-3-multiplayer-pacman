@@ -16,58 +16,47 @@ var server = app.listen(port, ()=>{
 var io = socket(server);
 
 var numPlayers = 0;
+var playersSockets = [];
 var firstPlayerSocket;
 var secondPlayerSocket;
-var firstPlayerName = '';
-var secondPlayerName = '';
 
-function getOtherSocket(socket) {
-    return socket === firstPlayerSocket ? secondPlayerSocket : firstPlayerSocket;
+function getOtherSocket(playerIndex) {
+    return playersSockets[playerIndex + (playerIndex%2 === 0 ? 1 : -1)];
 }
 
 io.on('connection', function(socket) {
-    if (++numPlayers === 1) {
-        firstPlayerSocket = socket;
+    const myPlayerIndex = numPlayers++;
+    playersSockets.push(socket);
+
+    if (numPlayers%2) {
         socket.emit('wait', '');
-
-    } else if (numPlayers === 2) {
-        secondPlayerSocket = socket;
-
-        firstPlayerSocket.emit('startGame', {
-            'otherPlayerName' : secondPlayerName,
-            'masterOrSlave'   : 'master'
-        });
-
-        secondPlayerSocket.emit('startGame', {
-            'otherPlayerName' : firstPlayerName,
-            'masterOrSlave'   : 'slave'
-        });
     } else {
-        socket.emit('tooManyPlayers');
-        return;
+        console.log("i'm feeling large today.... opening another room!");
+        getOtherSocket(myPlayerIndex).emit('startGame', 'master');
+        socket.emit('startGame', 'slave');
     }
 
     socket.on('dot', function(data) {
-        getOtherSocket(socket).emit('dot', data);
+        getOtherSocket(myPlayerIndex).emit('dot', data);
     });
 
     socket.on('candy', function(data) {
-        getOtherSocket(socket).emit('candy', data);
+        getOtherSocket(myPlayerIndex).emit('candy', data);
     });
 
     socket.on('updatePacmanNextDirection', function(data) {
-        getOtherSocket(socket).emit('updatePacmanNextDirection', data);
+        getOtherSocket(myPlayerIndex).emit('updatePacmanNextDirection', data);
     });
 
     socket.on('updateGhostNextDirection', function(data) {
-        getOtherSocket(socket).emit('updateGhostNextDirection', data);
+        getOtherSocket(myPlayerIndex).emit('updateGhostNextDirection', data);
     });
     socket.on('ghostTurn', function(data) {
-        getOtherSocket(socket).emit('ghostTurn', data);
+        getOtherSocket(myPlayerIndex).emit('ghostTurn', data);
     });
 
     socket.on('gameOver', function(data) {
-        getOtherSocket(socket).emit('gameOver', data);
+        getOtherSocket(myPlayerIndex).emit('gameOver', data);
     });
 
     console.log('user number ', numPlayers, ' connected');

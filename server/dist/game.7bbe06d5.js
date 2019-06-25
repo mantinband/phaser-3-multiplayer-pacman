@@ -589,7 +589,7 @@ function (_Phaser$Scene) {
           frameRate: 7,
           repeat: -1
         });
-        this.add.sprite(this.distanceFromLeft + 20, 250 + i * (this.ghostHeight * 3 + 5), this.ghosts[i], 0).anims.play(this.ghosts[i] + 'Animation').setScale(3);
+        this.add.sprite(this.distanceFromLeft + 20, 300 + i * (this.ghostHeight * 3 + 5), this.ghosts[i], 0).anims.play(this.ghosts[i] + 'Animation').setScale(3);
       }
 
       _GameScene.GameScene.setQuestion(this.question, this.answers, _Questions.QUESTIONS[this.questionIndex].correct_answer, this.questionDifficulty);
@@ -613,7 +613,7 @@ function (_Phaser$Scene) {
         } else {
           //print answer
           if (this.printingAnswer <= 4) {
-            this.add.text(this.distanceFromLeft + this.ghostWidth * 3 + 10, 250 + (this.printingAnswer - 1) * (this.ghostHeight * 3 + 5) - 10, this.answers[this.printingAnswer - 1], this.textStyle);
+            this.add.text(this.distanceFromLeft + this.ghostWidth * 3 + 10, 300 + (this.printingAnswer - 1) * (this.ghostHeight * 3 + 5) - 10, this.answers[this.printingAnswer - 1], this.textStyle);
           }
 
           this.printingAnswer++;
@@ -686,11 +686,15 @@ function (_Phaser$Scene) {
   _inherits(GameScene, _Phaser$Scene);
 
   function GameScene() {
+    var _this;
+
     _classCallCheck(this, GameScene);
 
-    return _possibleConstructorReturn(this, _getPrototypeOf(GameScene).call(this, {
+    _this = _possibleConstructorReturn(this, _getPrototypeOf(GameScene).call(this, {
       key: _CST.CST.SCENES.GAME
     }));
+    GameScene.pacmanLives = 3;
+    return _this;
   }
 
   _createClass(GameScene, [{
@@ -753,7 +757,6 @@ function (_Phaser$Scene) {
         repeat: 1
       });
       this.initPacman('pacman', this.playerName, this);
-      this.pacman.scoreText = this.add.text(this.textDistanceFromLeft, 440, '', this.textStyle);
       this.updateScore(this.pacman);
       this.input.keyboard.on('keydown', function (eventName, event) {
         switch (eventName.key) {
@@ -781,15 +784,15 @@ function (_Phaser$Scene) {
           this.socket.emit('updatePacmanNextDirection', this.pacman.nextDirection);
         }
       }, this);
-
-      if (!this.multiplayer) {
-        this.gameStarted = true;
-      }
-
-      this.addGhosts(this); // this.addGhostsCollideAction();
-
+      this.addGhosts(this);
+      this.addGhostsCollideAction();
       this.addCoins();
       this.addCoinsCollideAction();
+
+      if (!this.multiplayer) {
+        this.drawLives();
+        this.gameStarted = true;
+      }
     }
   }, {
     key: "update",
@@ -800,6 +803,7 @@ function (_Phaser$Scene) {
       if (this.timeToEatAnswer && ++this.timeToEatAnswerCounter === this.timeToEatAnswerDelay) {
         if (--this.timeToEatAnswer === 0) {
           this.scene.stop(_CST.CST.SCENES.QUESTION);
+          this.rightWrongText.text = '';
         }
 
         this.timeToEatAnswerCounter = 0;
@@ -960,12 +964,12 @@ function (_Phaser$Scene) {
   }, {
     key: "addCoinsCollideAction",
     value: function addCoinsCollideAction() {
-      var _this = this;
+      var _this2 = this;
 
       var _loop = function _loop(spot) {
-        _this.physics.add.collider(_this.pacman, _this.coins[spot].coin, function () {
+        _this2.physics.add.collider(_this2.pacman, _this2.coins[spot].coin, function () {
           this.iAteCandy(spot);
-        }, null, _this);
+        }, null, _this2);
       };
 
       for (var spot in this.coins) {
@@ -1039,10 +1043,10 @@ function (_Phaser$Scene) {
   }, {
     key: "addGhostsCollideAction",
     value: function addGhostsCollideAction() {
-      var _this2 = this;
+      var _this3 = this;
 
       var _loop2 = function _loop2(ghost) {
-        _this2.physics.add.overlap(_this2.pacman, _this2.ghosts[ghost].ghost, function () {
+        _this3.physics.add.overlap(_this3.pacman, _this3.ghosts[ghost].ghost, function () {
           if (this.timeToEatAnswer) {
             this.ghosts[ghost].ghost.setX(GameScene.indexToPixel(this.ghosts[ghost].startX));
             this.ghosts[ghost].ghost.setY(GameScene.indexToPixel(this.ghosts[ghost].startY));
@@ -1052,17 +1056,28 @@ function (_Phaser$Scene) {
             this.updateDirection(this.ghosts[ghost].ghost, true);
 
             if (GameScene.question.answers[this.ghosts[ghost].index] === GameScene.question.correctAnswer) {
-              alert('correct');
+              this.rightWrongText.text = 'correct!';
               this.pacman.score += GameScene.question.getCorrectAnswerPoints();
             } else {
-              alert('wrong');
+              this.rightWrongText.text = 'wrong!';
               this.pacman.score -= GameScene.question.getWrongAnswerPoints();
             }
           } else {
-            this.gameOver('lose');
-            this.socket.emit('gameOver', '');
+            if (!this.multiplayer) {
+              if (GameScene.getPacmanLives() === 1) {
+                alert('you have lost!');
+                GameScene.setPacmanLives(3);
+              } else {
+                GameScene.setPacmanLives(GameScene.getPacmanLives() - 1);
+              }
+
+              this.scene.restart();
+              /* commented for debug */
+              // this.gameOver('lose');
+              // this.socket.emit('gameOver', '');
+            }
           }
-        }, null, _this2);
+        }, null, _this3);
       };
 
       for (var ghost in this.ghosts) {
@@ -1081,6 +1096,12 @@ function (_Phaser$Scene) {
         fontFamily: '"Roboto Condensed"',
         fontSize: 30,
         color: "blue",
+        width: 400
+      };
+      this.rightWrongTextStyle = {
+        fontFamily: '"Roboto Condensed"',
+        fontSize: 30,
+        color: "white",
         width: 400
       };
       this.ghosts = {
@@ -1148,12 +1169,14 @@ function (_Phaser$Scene) {
       this.ghostThreshold = 1.9;
       this.dotCount = 0;
       this.numTotalDots = 272;
+      this.rightWrongText = this.add.text(180, 210, '', this.rightWrongTextStyle);
     }
   }, {
     key: "initPacman",
     value: function initPacman(pacmanName, playerName, context) {
       context[pacmanName] = context.add.sprite(GameScene.indexToPixel(14), GameScene.indexToPixel(17), 'pacman', 2);
       context[pacmanName].playerName = playerName;
+      context[pacmanName].scoreText = this.add.text(pacmanName === 'otherPacman' ? 250 : 10, 498, (context[pacmanName].playerName === '' ? 'score' : context[pacmanName].playerName) + ': 0', this.textStyle);
       context[pacmanName].marker = new Phaser.Geom.Point();
       /* set collision for all tiles besides dots and empty tiles */
 
@@ -1269,12 +1292,13 @@ function (_Phaser$Scene) {
     }
   }, {
     key: "updateScore",
-    value: function updateScore(pacman) {// pacman.scoreText.text = 'Score ' + pacman.playerName + ': ' + pacman.score;
+    value: function updateScore(pacman) {
+      pacman.scoreText.text = (pacman.playerName === '' ? 'score' : pacman.playerName) + ': ' + pacman.score;
     }
   }, {
     key: "updateGhosts",
     value: function updateGhosts() {
-      var _this3 = this;
+      var _this4 = this;
 
       for (var ghost in this.ghosts) {
         var ghostX = this.ghosts[ghost].ghost.x;
@@ -1306,21 +1330,21 @@ function (_Phaser$Scene) {
         var _loop3 = function _loop3() {
           var ghostAvailableDirections = [];
 
-          var nextTileX = _this3.getNextTile(_this3.ghosts[ghost].currentTileX, _this3.ghosts[ghost].ghost.direction, 'X');
+          var nextTileX = _this4.getNextTile(_this4.ghosts[ghost].currentTileX, _this4.ghosts[ghost].ghost.direction, 'X');
 
-          var nextTileY = _this3.getNextTile(_this3.ghosts[ghost].currentTileY, _this3.ghosts[ghost].ghost.direction, 'Y');
+          var nextTileY = _this4.getNextTile(_this4.ghosts[ghost].currentTileY, _this4.ghosts[ghost].ghost.direction, 'Y');
 
           var directions = [Phaser.LEFT, Phaser.RIGHT, Phaser.UP, Phaser.DOWN];
           directions.forEach(function (direction) {
             if (direction !== this.getOppositeDirection(this.ghosts[ghost].ghost.direction) && this.canMoveInDirection(nextTileX, nextTileY, direction)) {
               ghostAvailableDirections.push(direction);
             }
-          }, _this3);
+          }, _this4);
 
           if (ghostAvailableDirections.length) {
-            _this3.ghosts[ghost].ghost.nextDirection = ghostAvailableDirections[_this3.randInt(0, ghostAvailableDirections.length)];
+            _this4.ghosts[ghost].ghost.nextDirection = ghostAvailableDirections[_this4.randInt(0, ghostAvailableDirections.length)];
           } else {
-            _this3.ghosts[ghost].ghost.nextDirection = _this3.getOppositeDirection(_this3.ghosts[ghost].ghost.direction);
+            _this4.ghosts[ghost].ghost.nextDirection = _this4.getOppositeDirection(_this4.ghosts[ghost].ghost.direction);
           }
         };
 
@@ -1336,10 +1360,7 @@ function (_Phaser$Scene) {
   }, {
     key: "manageSocket",
     value: function manageSocket() {
-      var thisContext = this; // this.socket.emit('updateName', {
-      //     'playerName' : this.playerName,
-      // });
-
+      var thisContext = this;
       this.socket.on('tooManyPlayers', function () {
         alert('too many players..');
         thisContext.scene.start(_CST.CST.SCENES.MENU);
@@ -1349,13 +1370,11 @@ function (_Phaser$Scene) {
         /* i am the first player, wait for second */
         thisContext.scene.pause();
       });
-      this.socket.on('startGame', function (data) {
-        console.log('start game:', data);
+      this.socket.on('startGame', function (masteOrSlave) {
         /* second player has connected, game can start */
-
-        thisContext.masterOrSlave = data.masterOrSlave;
+        thisContext.masterOrSlave = masteOrSlave;
         thisContext.scene.resume(_CST.CST.SCENES.GAME);
-        thisContext.initPacman('otherPacman', data.otherPlayerName, thisContext);
+        thisContext.initPacman('otherPacman', 'other player', thisContext);
         thisContext.gameStarted = true;
       });
       this.socket.on('dot', function (data) {
@@ -1377,10 +1396,27 @@ function (_Phaser$Scene) {
         thisContext.updateDirection(thisContext.ghosts[data.ghost].ghost, true);
       });
     }
+  }, {
+    key: "drawLives",
+    value: function drawLives() {
+      for (var i = 0; i < GameScene.getPacmanLives(); i++) {
+        this.add.sprite(360 + i * 32, 515, 'pacman', 1);
+      }
+    }
   }], [{
     key: "indexToPixel",
     value: function indexToPixel(index) {
       return index * 16 + 8;
+    }
+  }, {
+    key: "getPacmanLives",
+    value: function getPacmanLives() {
+      return GameScene.pacmanLives;
+    }
+  }, {
+    key: "setPacmanLives",
+    value: function setPacmanLives(n) {
+      GameScene.pacmanLives = n;
     }
   }, {
     key: "setQuestion",
@@ -1493,9 +1529,15 @@ function (_Phaser$Scene) {
         fontSize: 50,
         color: "blue"
       };
+      this.titleStyle = {
+        fontFamily: '"Roboto Condensed"',
+        fontSize: 90,
+        color: "blue",
+        bold: "true"
+      };
       /* add menu options to screen */
 
-      this.add.text(this.distanceFromLeft, 60, 'MENU', this.textStyle);
+      this.add.text(this.distanceFromLeft - 10, 40, 'MENU', this.titleStyle);
       this.add.text(this.distanceFromLeft, this.distanceFromTop, 'single player', this.textStyle);
       this.add.text(this.distanceFromLeft, this.distanceFromTop + this.textHeight, 'multi player', this.textStyle);
       this.add.text(this.distanceFromLeft, this.distanceFromTop + 2 * this.textHeight, 'score board', this.textStyle);
@@ -1563,8 +1605,8 @@ function (_Phaser$Scene) {
   }, {
     key: "initStaticConfigurations",
     value: function initStaticConfigurations() {
-      this.distanceFromLeft = 320;
-      this.distanceFromTop = 150;
+      this.distanceFromLeft = 300;
+      this.distanceFromTop = 210;
       this.textHeight = 70;
       this.option = 1;
     }
@@ -1634,22 +1676,22 @@ function (_Phaser$Scene) {
   }, {
     key: "create",
     value: function create() {
+      this.titleStyle = {
+        fontFamily: '"Roboto Condensed"',
+        fontSize: 90,
+        color: "blue",
+        bold: "true"
+      };
       this.textStyle = {
         fontFamily: '"Roboto Condensed"',
         fontSize: 50,
         color: "blue"
       };
-      this.namePlayer1 = '';
-      this.basicTextPlayer1 = 'Enter player' + (this.multiplayer ? ' 1: ' : '\'s name: ');
-      this.textPlayer1 = this.add.text(this.distanceFromLeft, this.distanceFromTop, this.basicTextPlayer1, this.textStyle);
+      this.playerName = '';
+      this.basicEnterPlayerNameText = 'Enter player\'s name: ';
+      this.add.text(this.distanceFromLeft, 40, (this.multiplayer ? 'Multi' : 'single') + '-player!', this.titleStyle);
+      this.playerNameText = this.add.text(this.distanceFromLeft, this.distanceFromTop, this.basicEnterPlayerNameText, this.textStyle);
       this.add.text(this.distanceFromLeft, 400, 'back', this.textStyle);
-
-      if (this.multiplayer) {
-        this.basicTextPlayer2 = 'Enter player 2: ';
-        this.textPlayer2 = this.add.text(this.distanceFromLeft, this.textHeight + this.distanceFromTop, this.basicTextPlayer2, this.textStyle);
-        this.namePlayer2 = '';
-      }
-
       this.pacman = this.add.sprite(this.distanceFromLeft - 30, this.distanceFromTop + 28, 'pacman', 2);
       this.anims.create({
         key: 'moving',
@@ -1663,100 +1705,42 @@ function (_Phaser$Scene) {
       this.pacman.anims.play('moving');
       this.input.keyboard.on('keydown', function (eventName, event) {
         if (eventName.key === 'Enter') {
-          if (this.pacmanPointingAtPlayer === -1) {
-            this.scene.start(_CST.CST.SCENES.MENU);
-            this.scene.stop(_CST.CST.SCENES.INPUT_NAMES);
-          } else {
+          if (this.pacmanPointingAtPlayer === true) {
             this.scene.start(_CST.CST.SCENES.GAME, {
               'multiplayer': this.multiplayer,
-              'playerName': this.namePlayer1,
-              'namePlayer2': this.namePlayer2
+              'playerName': this.playerName
             });
+          } else {
+            this.scene.start(_CST.CST.SCENES.MENU);
+            this.scene.stop(_CST.CST.SCENES.INPUT_NAMES);
           }
         }
 
-        if (this.multiplayer) {
-          switch (eventName.key) {
-            case 'ArrowDown':
-              switch (this.pacmanPointingAtPlayer) {
-                case 1:
-                  this.pacmanPointingAtPlayer = 2;
-                  this.pacman.setY(this.pacman.y + this.textHeight);
-                  break;
+        switch (eventName.key) {
+          case 'ArrowDown':
+            this.pacman.setY(425);
+            this.pacmanPointingAtPlayer = false;
+            break;
 
-                case 2:
-                  this.pacman.setY(425);
-                  this.pacmanPointingAtPlayer = -1;
-                  break;
+          case 'ArrowUp':
+            this.pacmanPointingAtPlayer = true;
+            this.pacman.setY(this.distanceFromTop + 28);
+            break;
 
-                default:
-                  break;
-              }
-
-              break;
-
-            case 'ArrowUp':
-              switch (this.pacmanPointingAtPlayer) {
-                case 2:
-                  this.pacmanPointingAtPlayer = 1;
-                  this.pacman.setY(this.pacman.y - this.textHeight);
-                  break;
-
-                case -1:
-                  this.pacmanPointingAtPlayer = 2;
-                  this.pacman.setY(this.distanceFromTop + 28 + this.textHeight);
-                  break;
-
-                default:
-                  break;
-              }
-
-              break;
-
-            default:
-              break;
-          }
-        } else {
-          switch (eventName.key) {
-            case 'ArrowDown':
-              this.pacman.setY(425);
-              this.pacmanPointingAtPlayer = -1;
-              break;
-
-            case 'ArrowUp':
-              this.pacmanPointingAtPlayer = 1;
-              this.pacman.setY(this.distanceFromTop + 28);
-              break;
-
-            default:
-              break;
-          }
+          default:
+            break;
         }
 
-        if (this.pacmanPointingAtPlayer !== -1) {
+        if (this.pacmanPointingAtPlayer) {
           if (eventName.key >= 'a' && eventName.key <= 'z' || eventName.key >= '1' && eventName.key <= '9') {
-            if (this.pacmanPointingAtPlayer === 1) {
-              if (this.namePlayer1.length < this.maxNameLength) {
-                this.namePlayer1 += eventName.key;
-                this.textPlayer1.text = this.basicTextPlayer1 + this.namePlayer1;
-              }
-            } else {
-              if (this.namePlayer2.length < this.maxNameLength) {
-                this.namePlayer2 += eventName.key;
-                this.textPlayer2.text = this.basicTextPlayer2 + this.namePlayer2;
-              }
+            if (this.playerName.length < this.maxNameLength) {
+              this.playerName += eventName.key;
+              this.playerNameText.text = this.basicEnterPlayerNameText + this.playerName;
             }
           } else if (eventName.key === 'Backspace') {
-            if (this.pacmanPointingAtPlayer === 1) {
-              if (this.namePlayer1.length) {
-                this.namePlayer1 = this.namePlayer1.slice(0, -1);
-                this.textPlayer1.text = this.basicTextPlayer1 + this.namePlayer1;
-              }
-            } else {
-              if (this.namePlayer2.length) {
-                this.namePlayer2 = this.namePlayer2.slice(0, -1);
-                this.textPlayer2.text = this.basicTextPlayer2 + this.namePlayer2;
-              }
+            if (this.playerName.length) {
+              this.playerName = this.playerName.slice(0, -1);
+              this.playerNameText.text = this.basicEnterPlayerNameText + this.playerName;
             }
           }
         }
@@ -1766,9 +1750,9 @@ function (_Phaser$Scene) {
     key: "initStaticConfigurations",
     value: function initStaticConfigurations() {
       this.distanceFromLeft = 60;
-      this.distanceFromTop = 150;
+      this.distanceFromTop = 250;
       this.textHeight = 70;
-      this.pacmanPointingAtPlayer = 1;
+      this.pacmanPointingAtPlayer = true;
       this.maxNameLength = 6;
     }
   }]);
@@ -1933,7 +1917,7 @@ var _ScoreBoard = require("./scenes/ScoreBoard");
 
 var game = new Phaser.Game({
   width: 448 * 2,
-  height: 496,
+  height: 496 + 40,
   scene: [_MenuScene.MenuScene, _InputNamesScene.InputNamesScene, _GameScene.GameScene, _QuestionScene.QuestionScene, _ManageQuestions.ManageQuestions, _ScoreBoard.ScoreBoardScene],
   physics: {
     default: 'arcade'
@@ -1967,7 +1951,7 @@ var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var hostname = "" || location.hostname;
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-  var ws = new WebSocket(protocol + '://' + hostname + ':' + "45733" + '/');
+  var ws = new WebSocket(protocol + '://' + hostname + ':' + "44691" + '/');
 
   ws.onmessage = function (event) {
     checkedAssets = {};

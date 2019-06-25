@@ -13,22 +13,22 @@ export class InputNamesScene extends Phaser.Scene {
         this.initStaticConfigurations();
     }
     create() {
+        this.titleStyle = {
+            fontFamily: '"Roboto Condensed"',
+            fontSize : 90,
+            color : "blue",
+            bold : "true",
+        };
         this.textStyle = {
             fontFamily: '"Roboto Condensed"',
             fontSize : 50,
             color : "blue",
         };
-        this.namePlayer1 = '';
-        this.basicTextPlayer1 = 'Enter player' + (this.multiplayer ? ' 1: ' : '\'s name: ');
-
-        this.textPlayer1 = this.add.text(this.distanceFromLeft, this.distanceFromTop, this.basicTextPlayer1, this.textStyle);
+        this.playerName = '';
+        this.basicEnterPlayerNameText = 'Enter player\'s name: ';
+        this.add.text(this.distanceFromLeft, 40, (this.multiplayer ? 'Multi' : 'single') + '-player!', this.titleStyle);
+        this.playerNameText = this.add.text(this.distanceFromLeft, this.distanceFromTop, this.basicEnterPlayerNameText , this.textStyle);
         this.add.text(this.distanceFromLeft, 400, 'back', this.textStyle);
-
-        if (this.multiplayer) {
-            this.basicTextPlayer2 = 'Enter player 2: ';
-            this.textPlayer2 = this.add.text(this.distanceFromLeft, this.textHeight + this.distanceFromTop, this.basicTextPlayer2, this.textStyle);
-            this.namePlayer2 = '';
-        }
 
         this.pacman = this.add.sprite(this.distanceFromLeft - 30, this.distanceFromTop + 28, 'pacman', 2);
         this.anims.create({
@@ -42,89 +42,38 @@ export class InputNamesScene extends Phaser.Scene {
 
         this.input.keyboard.on('keydown', function (eventName, event) {
             if (eventName.key === 'Enter') {
-                if (this.pacmanPointingAtPlayer === -1) {
+                if (this.pacmanPointingAtPlayer === true) {
+                    this.scene.start(CST.SCENES.GAME, {
+                            'multiplayer' : this.multiplayer,
+                            'playerName'  : this.playerName,
+                        });
+                } else {
                     this.scene.start(CST.SCENES.MENU);
                     this.scene.stop(CST.SCENES.INPUT_NAMES);
-                } else {
-                    this.scene.start(CST.SCENES.GAME,
-                        {
-                            'multiplayer' : this.multiplayer,
-                            'playerName'  : this.namePlayer1,
-                            'namePlayer2' : this.namePlayer2
-                        });
                 }
             }
-            if (this.multiplayer) {
-                switch (eventName.key) {
-                    case 'ArrowDown':
-                        switch (this.pacmanPointingAtPlayer) {
-                            case 1:
-                                this.pacmanPointingAtPlayer = 2;
-                                this.pacman.setY(this.pacman.y + this.textHeight);
-                                break;
-                            case 2:
-                                this.pacman.setY(425);
-                                this.pacmanPointingAtPlayer = -1;
-                                break;
-                            default:
-                                break;
-                        }
-                        break;
-                    case 'ArrowUp':
-                        switch (this.pacmanPointingAtPlayer) {
-                            case 2:
-                                this.pacmanPointingAtPlayer = 1;
-                                this.pacman.setY(this.pacman.y - this.textHeight);
-                                break;
-                            case -1:
-                                this.pacmanPointingAtPlayer = 2;
-                                this.pacman.setY(this.distanceFromTop + 28 + this.textHeight);
-                                break;
-                            default:
-                                break;
-                        }
-                        break;
-                    default:
-                        break;
-                }
-            } else {
-                switch (eventName.key) {
-                    case 'ArrowDown':
-                        this.pacman.setY(425);
-                        this.pacmanPointingAtPlayer = -1;
-                        break;
-                    case 'ArrowUp':
-                        this.pacmanPointingAtPlayer = 1;
-                        this.pacman.setY(this.distanceFromTop + 28);
-                        break;
-                    default:
-                        break;
-                }
+            switch (eventName.key) {
+                case 'ArrowDown':
+                    this.pacman.setY(425);
+                    this.pacmanPointingAtPlayer = false;
+                    break;
+                case 'ArrowUp':
+                    this.pacmanPointingAtPlayer = true;
+                    this.pacman.setY(this.distanceFromTop + 28);
+                    break;
+                default:
+                    break;
             }
-            if (this.pacmanPointingAtPlayer !== -1) {
+            if (this.pacmanPointingAtPlayer) {
                 if (eventName.key >= 'a' && eventName.key <= 'z' || eventName.key >= '1' && eventName.key <= '9') {
-                    if (this.pacmanPointingAtPlayer === 1) {
-                        if (this.namePlayer1.length < this.maxNameLength) {
-                            this.namePlayer1 += eventName.key;
-                            this.textPlayer1.text = this.basicTextPlayer1 + this.namePlayer1;
-                        }
-                    } else {
-                        if (this.namePlayer2.length < this.maxNameLength) {
-                            this.namePlayer2 += eventName.key;
-                            this.textPlayer2.text = this.basicTextPlayer2 + this.namePlayer2;
-                        }
+                    if (this.playerName.length < this.maxNameLength) {
+                        this.playerName += eventName.key;
+                        this.playerNameText.text = this.basicEnterPlayerNameText + this.playerName;
                     }
                 } else if (eventName.key === 'Backspace') {
-                    if (this.pacmanPointingAtPlayer === 1) {
-                        if (this.namePlayer1.length) {
-                            this.namePlayer1 = this.namePlayer1.slice(0, -1);
-                            this.textPlayer1.text = this.basicTextPlayer1 + this.namePlayer1;
-                        }
-                    } else {
-                        if (this.namePlayer2.length) {
-                            this.namePlayer2 = this.namePlayer2.slice(0, -1);
-                            this.textPlayer2.text = this.basicTextPlayer2 + this.namePlayer2;
-                        }
+                    if (this.playerName.length) {
+                        this.playerName = this.playerName.slice(0, -1);
+                        this.playerNameText.text = this.basicEnterPlayerNameText + this.playerName;
                     }
                 }
             }
@@ -132,9 +81,9 @@ export class InputNamesScene extends Phaser.Scene {
     }
     initStaticConfigurations() {
         this.distanceFromLeft = 60;
-        this.distanceFromTop = 150;
+        this.distanceFromTop = 250;
         this.textHeight = 70;
-        this.pacmanPointingAtPlayer = 1;
+        this.pacmanPointingAtPlayer = true;
         this.maxNameLength = 6;
     }
 }

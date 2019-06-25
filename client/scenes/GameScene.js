@@ -4,7 +4,8 @@ import {QUESTIONS} from "../../assets/Questions";
 
 export class GameScene extends Phaser.Scene {
     constructor() {
-        super({key: CST.SCENES.GAME })
+        super({key: CST.SCENES.GAME });
+        GameScene.pacmanLives = 3;
     }
 
     init(config) {
@@ -48,7 +49,6 @@ export class GameScene extends Phaser.Scene {
             repeat: 1
         });
         this.initPacman('pacman', this.playerName, this);
-        this.pacman.scoreText = this.add.text(this.textDistanceFromLeft , 440, '' , this.textStyle);
 
         this.updateScore(this.pacman);
 
@@ -66,14 +66,15 @@ export class GameScene extends Phaser.Scene {
             }
         }, this);
 
-        if (!this.multiplayer) {
-            this.gameStarted = true;
-        }
 
         this.addGhosts(this);
-        // this.addGhostsCollideAction();
+        this.addGhostsCollideAction();
         this.addCoins();
         this.addCoinsCollideAction();
+        if (!this.multiplayer) {
+            this.drawLives();
+            this.gameStarted = true;
+        }
     }
 
     update() {
@@ -82,6 +83,7 @@ export class GameScene extends Phaser.Scene {
         if (this.timeToEatAnswer && ++this.timeToEatAnswerCounter === this.timeToEatAnswerDelay) {
             if (--this.timeToEatAnswer === 0) {
                 this.scene.stop(CST.SCENES.QUESTION);
+                this.rightWrongText.text = '';
             }
             this.timeToEatAnswerCounter = 0;
         }
@@ -284,19 +286,36 @@ export class GameScene extends Phaser.Scene {
                     this.ghosts[ghost].ghost.nextDirection = Phaser.RIGHT;
                     this.updateDirection(this.ghosts[ghost].ghost, true);
                     if (GameScene.question.answers[this.ghosts[ghost].index] === GameScene.question.correctAnswer) {
-                        alert('correct');
+                        this.rightWrongText.text = 'correct!';
                         this.pacman.score += GameScene.question.getCorrectAnswerPoints();
                     } else {
-                        alert('wrong');
+                        this.rightWrongText.text = 'wrong!';
                         this.pacman.score -= GameScene.question.getWrongAnswerPoints();
                     }
                 } else {
-                    this.gameOver('lose');
-                    this.socket.emit('gameOver', '');
+                    if (!this.multiplayer) {
+                        if (GameScene.getPacmanLives() === 1) {
+                            alert('you have lost!');
+                            GameScene.setPacmanLives(3);
+                        } else {
+                            GameScene.setPacmanLives(GameScene.getPacmanLives() - 1);
+                        }
+                        this.scene.restart();
+                        /* commented for debug */
+                        // this.gameOver('lose');
+                        // this.socket.emit('gameOver', '');
+                    }
                 }
             }, null, this);
         }
 
+    }
+
+    static getPacmanLives() {
+        return GameScene.pacmanLives;
+    }
+    static setPacmanLives(n) {
+        GameScene.pacmanLives = n;
     }
 
     randInt(min, max) {
@@ -308,6 +327,13 @@ export class GameScene extends Phaser.Scene {
             fontFamily: '"Roboto Condensed"',
             fontSize : 30,
             color : "blue",
+            width : 400
+        };
+
+        this.rightWrongTextStyle = {
+            fontFamily: '"Roboto Condensed"',
+            fontSize : 30,
+            color : "white",
             width : 400
         };
 
@@ -379,11 +405,14 @@ export class GameScene extends Phaser.Scene {
         this.dotCount                    = 0;
         this.numTotalDots                = 272;
 
+        this.rightWrongText = this.add.text(180, 210, '', this.rightWrongTextStyle);
     }
 
     initPacman(pacmanName, playerName, context) {
         context[pacmanName] = context.add.sprite(GameScene.indexToPixel(14), GameScene.indexToPixel(17), 'pacman', 2);
         context[pacmanName].playerName = playerName;
+        context[pacmanName].scoreText = this.add.text(pacmanName === 'otherPacman' ? 250 : 10,
+            498, (context[pacmanName].playerName === '' ? 'score' : context[pacmanName].playerName) + ': 0' , this.textStyle);
 
         context[pacmanName].marker = new Phaser.Geom.Point();
         /* set collision for all tiles besides dots and empty tiles */
@@ -494,7 +523,7 @@ export class GameScene extends Phaser.Scene {
     }
 
     updateScore(pacman) {
-        // pacman.scoreText.text = 'Score ' + pacman.playerName + ': ' + pacman.score;
+        pacman.scoreText.text = (pacman.playerName === '' ? 'score' : pacman.playerName) + ': ' + pacman.score;
     }
 
     updateGhosts() {
@@ -558,9 +587,6 @@ export class GameScene extends Phaser.Scene {
 
     manageSocket() {
         var thisContext = this;
-        // this.socket.emit('updateName', {
-        //     'playerName' : this.playerName,
-        // });
         this.socket.on('tooManyPlayers', function() {
             alert('too many players..');
             thisContext.scene.start(CST.SCENES.MENU);
@@ -570,12 +596,11 @@ export class GameScene extends Phaser.Scene {
             /* i am the first player, wait for second */
             thisContext.scene.pause();
         });
-        this.socket.on('startGame', function(data) {
-            console.log('start game:', data);
+        this.socket.on('startGame', function(masteOrSlave) {
             /* second player has connected, game can start */
-            thisContext.masterOrSlave = data.masterOrSlave;
+            thisContext.masterOrSlave = masteOrSlave;
             thisContext.scene.resume(CST.SCENES.GAME);
-            thisContext.initPacman('otherPacman', data.otherPlayerName, thisContext);
+            thisContext.initPacman('otherPacman', 'other player', thisContext);
             thisContext.gameStarted = true;
         });
         this.socket.on('dot', function(data) {
@@ -597,6 +622,13 @@ export class GameScene extends Phaser.Scene {
             thisContext.updateDirection(thisContext.ghosts[data.ghost].ghost, true);
         });
     }
+
+    drawLives() {
+        for (var i=0; i<GameScene.getPacmanLives(); i++) {
+            this.add.sprite(360 + i*32, 515, 'pacman', 1);
+        }
+    }
+
 }
 
 class Question {

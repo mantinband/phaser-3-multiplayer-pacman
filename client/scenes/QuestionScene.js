@@ -48,7 +48,7 @@ export class QuestionScene extends Phaser.Scene {
                 frameRate: 7,
                 repeat: -1
             });
-            this.add.sprite(this.distanceFromLeft + 20, 250 + i*(this.ghostHeight*3+5), this.ghosts[i], 0).anims.play(this.ghosts[i] + 'Animation').setScale(3);
+            this.add.sprite(this.distanceFromLeft + 20, 300 + i*(this.ghostHeight*3+5), this.ghosts[i], 0).anims.play(this.ghosts[i] + 'Animation').setScale(3);
         }
         GameScene.setQuestion(this.question, this.answers, QUESTIONS[this.questionIndex].correct_answer, this.questionDifficulty);
     }
@@ -67,7 +67,7 @@ export class QuestionScene extends Phaser.Scene {
             } else { //print answer
                 if (this.printingAnswer <= 4) {
                     this.add.text(this.distanceFromLeft + this.ghostWidth*3 + 10,
-                        250 + (this.printingAnswer-1)*(this.ghostHeight*3+5) -10, this.answers[this.printingAnswer-1], this.textStyle);
+                        300 + (this.printingAnswer-1)*(this.ghostHeight*3+5) -10, this.answers[this.printingAnswer-1], this.textStyle);
                 }
                 this.printingAnswer++;
                 if (this.printingAnswer === 40) {

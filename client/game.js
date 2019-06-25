@@ -7,7 +7,7 @@ import {ScoreBoardScene} from "./scenes/ScoreBoard";
 
 let game = new Phaser.Game({
     width: 448*2,
-    height: 496,
+    height: 496 + 40,
     scene : [
         MenuScene, InputNamesScene, GameScene, QuestionScene, ManageQuestions, ScoreBoardScene
     ],
