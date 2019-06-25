@@ -6,6 +6,9 @@ export class QuestionScene extends Phaser.Scene {
     constructor() {
         super({key: CST.SCENES.QUESTION})
     }
+    init(questionIndex) {
+        this.questionIndex = questionIndex;
+    }
     preload() {
         this.ghosts=[ 'blinky', 'inky', 'pinky', 'clyde'];
         this.ghostHeight = 16;
@@ -16,7 +19,6 @@ export class QuestionScene extends Phaser.Scene {
         }
     }
     create() {
-        this.questionIndex = this.randInt(0, QUESTIONS.length);
         this.textStyle = {
             fontFamily: '"Roboto Condensed"',
             fontSize : 30,

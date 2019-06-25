@@ -8,12 +8,10 @@ export class GameScene extends Phaser.Scene {
     }
 
     init(config) {
-        this.multiplayer = config.multiplayer === true;
-        this.namePlayer1 = config.namePlayer1;
-        if (this.multiplayer) {
-            this.namePlayer2 = config.namePlayer2;
-        }
+        this.multiplayer = (config.multiplayer === true);
+        this.playerName = config.playerName;
     }
+
     preload() {
         this.initStaticConfigurations();
         this.load.image('dot', 'dot.png');
@@ -30,10 +28,13 @@ export class GameScene extends Phaser.Scene {
     }
 
     create() {
+        if (this.multiplayer) {
+            this.socket = io.connect('http://localhost:1235');
+            this.manageSocket();
+        }
         this.map = this.make.tilemap({key:'map'});
         const tileset = this.map.addTilesetImage('pacman-tiles', 'tiles');
         this.layer = this.map.createDynamicLayer('Pacman', tileset);
-
         this.anims.create({
             key: 'moving',
             frames: this.anims.generateFrameNumbers('pacman', { frames: [2, 1, 0, 1]}),
@@ -46,48 +47,37 @@ export class GameScene extends Phaser.Scene {
             frameRate: 10,
             repeat: 1
         });
-        this.initPacman('pacman1', this.namePlayer1);
-        this.pacman1.scoreText = this.add.text(this.textDistanceFromLeft , 440, '' , this.textStyle);
+        this.initPacman('pacman', this.playerName, this);
+        this.pacman.scoreText = this.add.text(this.textDistanceFromLeft , 440, '' , this.textStyle);
 
-
-
-        this.updateScore(this.pacman1);
+        this.updateScore(this.pacman);
 
         this.input.keyboard.on('keydown', function (eventName, event) {
             switch (eventName.key) {
-                case 'ArrowDown':   this.pacman1.nextDirection = Phaser.DOWN;  break;
-                case 'ArrowUp':     this.pacman1.nextDirection = Phaser.UP;    break;
-                case 'ArrowLeft':   this.pacman1.nextDirection = Phaser.LEFT;  break;
-                case 'ArrowRight':  this.pacman1.nextDirection = Phaser.RIGHT; break;
+                case 'ArrowDown':   this.pacman.nextDirection = Phaser.DOWN;  break;
+                case 'ArrowUp':     this.pacman.nextDirection = Phaser.UP;    break;
+                case 'ArrowLeft':   this.pacman.nextDirection = Phaser.LEFT;  break;
+                case 'ArrowRight':  this.pacman.nextDirection = Phaser.RIGHT; break;
 
                 default: console.log('invalid button pressed: ' + eventName.key);
             }
             if (this.multiplayer) {
-                switch (eventName.key) {
-                    case 'h': this.pacman2.nextDirection = Phaser.LEFT; break;
-                    case 'l': this.pacman2.nextDirection = Phaser.RIGHT; break;
-                    case 'j': this.pacman2.nextDirection = Phaser.DOWN; break;
-                    case 'k': this.pacman2.nextDirection = Phaser.UP; break;
-                    default: console.log('invalid button pressed: ' + eventName.key); }
+                this.socket.emit('updatePacmanNextDirection', this.pacman.nextDirection);
             }
         }, this);
 
-
-        this.addCoins();
-        this.addGhosts();
-        this.addCoinsCollideAction(this.pacman1);
-        this.addGhostsCollideAction(this.pacman1);
-
-        if (this.multiplayer) {
-            this.initPacman('pacman2', this.namePlayer2);
-            this.pacman2.scoreText = this.add.text(this.textDistanceFromLeft + 200 , 440, '' , this.textStyle);
-            this.updateScore(this.pacman2);
-            this.addCoinsCollideAction(this.pacman2);
-            this.addGhostsCollideAction(this.pacman2);
+        if (!this.multiplayer) {
+            this.gameStarted = true;
         }
+
+        this.addGhosts(this);
+        // this.addGhostsCollideAction();
+        this.addCoins();
+        this.addCoinsCollideAction();
     }
 
     update() {
+        if (!this.gameStarted) return;
         /* if game is in "candy eaten" time */
         if (this.timeToEatAnswer && ++this.timeToEatAnswerCounter === this.timeToEatAnswerDelay) {
             if (--this.timeToEatAnswer === 0) {
@@ -96,11 +86,13 @@ export class GameScene extends Phaser.Scene {
             this.timeToEatAnswerCounter = 0;
         }
 
-        this.updatePacman(this.pacman1);
+        this.updatePacman(this.pacman);
         if (this.multiplayer) {
-            this.updatePacman(this.pacman2);
+            this.updatePacman(this.otherPacman);
         }
-        this.updateGhosts();
+        if (!this.multiplayer || this.masterOrSlave === 'master') {
+            this.updateGhosts();
+        }
     }
 
     canMoveInDirection(x, y, direction) {
@@ -136,7 +128,7 @@ export class GameScene extends Phaser.Scene {
                 } else {
                     gameObject.angle = 180;
                 }
-                gameObject.body.setVelocityX(-this.speed);
+                gameObject.body.setVelocityX(isGhost ? -this.ghostSpeed : -this.speed);
                 gameObject.body.setVelocityY(0);
                 break;
             case Phaser.RIGHT:
@@ -148,7 +140,7 @@ export class GameScene extends Phaser.Scene {
                 } else {
                     gameObject.angle = 0;
                 }
-                gameObject.body.setVelocityX(this.speed);
+                gameObject.body.setVelocityX(isGhost ? this.ghostSpeed : this.speed);
                 gameObject.body.setVelocityY(0);
                 break;
             case Phaser.UP:
@@ -161,7 +153,7 @@ export class GameScene extends Phaser.Scene {
                     gameObject.angle = 270;
                 }
                 gameObject.body.setVelocityX(0);
-                gameObject.body.setVelocityY(-this.speed);
+                gameObject.body.setVelocityY(isGhost ? -this.ghostSpeed : -this.speed);
                 break;
             case Phaser.DOWN:
                 if (isGhost) {
@@ -173,7 +165,7 @@ export class GameScene extends Phaser.Scene {
                     gameObject.angle = 90;
                 }
                 gameObject.body.setVelocityX(0);
-                gameObject.body.setVelocityY(this.speed);
+                gameObject.body.setVelocityY(isGhost ? this.ghostSpeed : this.speed);
                 break;
             default: console.log('updateDirection: invalid direction: ' + gameObject.direction);
         }
@@ -187,7 +179,7 @@ export class GameScene extends Phaser.Scene {
             repeat: -1
         });
         for (let spot in this.coins) {
-            this.coins[spot]['coin'] = this.add.sprite((this.coins[spot].x * 16) + 8, (this.coins[spot].y * 16) + 8, 'coin', 0);
+            this.coins[spot]['coin'] = this.add.sprite(GameScene.indexToPixel(this.coins[spot].x), GameScene.indexToPixel(this.coins[spot].y), 'coin', 0);
             this.physics.world.enable(this.coins[spot].coin);
             this.coins[spot]['coin'].setScale(0.5);
             this.coins[spot]['coin'].body.setSize(this.coinSize, this.coinSize);
@@ -195,18 +187,33 @@ export class GameScene extends Phaser.Scene {
         }
     }
 
-    addCoinsCollideAction(pacman) {
+    iAteCandy(spot) {
+        const questionIndex = this.randInt(0, QUESTIONS.length);
+        if (this.multiplayer) {
+            this.socket.emit('candy', {
+                'questionIndex' : questionIndex,
+                'spot'          : spot,
+            });
+        }
+        this.candyEaten(spot, questionIndex);
+    }
+
+    candyEaten(spot, questionIndex) {
+        this.coins[spot].coin.destroy();
+        this.scene.launch(CST.SCENES.QUESTION, questionIndex);
+        this.scene.pause();
+        this.timeToEatAnswer = 14;
+        for (let ghost in this.ghosts) {
+            this.ghosts[ghost].ghost.anims.stop();
+            this.ghosts[ghost].ghost.anims.play(ghost + 'Blue');
+        }
+        this.updateDirection(this.pacman, false);
+    }
+
+    addCoinsCollideAction() {
         for (let spot in this.coins) {
-            this.physics.add.collider(pacman, this.coins[spot].coin, function () {
-                this.coins[spot].coin.destroy();
-                this.scene.launch(CST.SCENES.QUESTION);
-                this.scene.pause();
-                this.timeToEatAnswer = 14;
-                for (let ghost in this.ghosts) {
-                    this.ghosts[ghost].ghost.anims.stop();
-                    this.ghosts[ghost].ghost.anims.play(ghost + 'Blue');
-                }
-                this.updateDirection(pacman, false);
+            this.physics.add.collider(this.pacman, this.coins[spot].coin, function() {
+                this.iAteCandy(spot);
             }, null, this);
         }
     }
@@ -215,61 +222,60 @@ export class GameScene extends Phaser.Scene {
         return index*16+8;
     }
 
-    addGhosts() {
+    addGhosts(context) {
         for (let ghost in this.ghosts) {
-            console.log(ghost+'Right');
-            this.anims.create({
+            context.anims.create({
                 key: ghost + 'Right',
-                frames: this.anims.generateFrameNumbers(ghost, { frames: [0,1]}),
+                frames: context.anims.generateFrameNumbers(ghost, { frames: [0,1]}),
                 frameRate: 10,
                 repeat: -1
             });
-            this.anims.create({
+            context.anims.create({
                 key: ghost + 'Left',
-                frames: this.anims.generateFrameNumbers(ghost, { frames: [2,3]}),
+                frames: context.anims.generateFrameNumbers(ghost, { frames: [2,3]}),
                 frameRate: 10,
                 repeat: -1
             });
-            this.anims.create({
+            context.anims.create({
                 key: ghost + 'Up',
-                frames: this.anims.generateFrameNumbers(ghost, { frames: [4,5]}),
+                frames: context.anims.generateFrameNumbers(ghost, { frames: [4,5]}),
                 frameRate: 10,
                 repeat: -1
             });
-            this.anims.create({
+            context.anims.create({
                 key: ghost + 'Down',
-                frames: this.anims.generateFrameNumbers(ghost, { frames: [6,7]}),
+                frames: context.anims.generateFrameNumbers(ghost, { frames: [6,7]}),
                 frameRate: 10,
                 repeat: -1
             });
-            this.anims.create({
+            context.anims.create({
                 key: ghost + 'Blue',
-                frames: this.anims.generateFrameNumbers(ghost, { frames: [8,9,0,1]}),
+                frames: context.anims.generateFrameNumbers(ghost, { frames: [8,9,0,1]}),
                 frameRate: 10,
                 repeat: -1
             });
-            this.anims.create({
+            context.anims.create({
                 key: ghost + 'Eaten',
-                frames: this.anims.generateFrameNumbers(ghost, { frames: [10, 11, 12, 13, 14, 15]}),
+                frames: context.anims.generateFrameNumbers(ghost, { frames: [10, 11, 12, 13, 14, 15]}),
                 frameRate: 10,
                 repeat: -1
             });
-            this.ghosts[ghost].ghost = this.add.sprite(GameScene.indexToPixel(this.ghosts[ghost].startX), GameScene.indexToPixel(this.ghosts[ghost].startY), ghost, 0);
-            this.ghosts[ghost].ghost.name = ghost;
-            this.ghosts[ghost].ghost.setScale(1.5);
-            this.ghosts[ghost].ghost.anims.play(ghost + 'Right');
-            this.ghosts[ghost].ghost.direction = Phaser.RIGHT;
-            this.ghosts[ghost].ghost.nextDirection = Phaser.RIGHT;
-            this.physics.add.collider(this.ghosts[ghost].ghost, this.layer);
-            this.physics.world.enable(this.ghosts[ghost].ghost);
-            this.ghosts[ghost].ghost.body.setSize(this.ghostSize,this.ghostSize);
-            this.ghosts[ghost].ghost.body.setVelocityX(100);
+            context.ghosts[ghost].ghost = context.add.sprite(GameScene.indexToPixel(context.ghosts[ghost].startX), GameScene.indexToPixel(context.ghosts[ghost].startY), ghost, 0);
+            context.ghosts[ghost].ghost.name = ghost;
+            context.ghosts[ghost].ghost.setScale(1.5);
+            context.ghosts[ghost].ghost.anims.play(ghost + 'Right');
+            context.ghosts[ghost].ghost.direction = Phaser.RIGHT;
+            context.ghosts[ghost].ghost.nextDirection = Phaser.RIGHT;
+            context.physics.add.collider(context.ghosts[ghost].ghost, context.layer);
+            context.physics.world.enable(context.ghosts[ghost].ghost);
+            context.ghosts[ghost].ghost.body.setSize(context.ghostSize, context.ghostSize);
+            context.ghosts[ghost].ghost.body.setVelocityX(context.ghostSpeed);
         }
     }
 
-    addGhostsCollideAction(pacman) {
+    addGhostsCollideAction() {
         for (let ghost in this.ghosts) {
-            this.physics.add.overlap(pacman, this.ghosts[ghost].ghost, function () {
+            this.physics.add.overlap(this.pacman, this.ghosts[ghost].ghost, function () {
                 if (this.timeToEatAnswer) {
                     this.ghosts[ghost].ghost.setX(GameScene.indexToPixel(this.ghosts[ghost].startX));
                     this.ghosts[ghost].ghost.setY(GameScene.indexToPixel(this.ghosts[ghost].startY));
@@ -277,17 +283,16 @@ export class GameScene extends Phaser.Scene {
                     this.ghosts[ghost].ghost.direction = Phaser.RIGHT;
                     this.ghosts[ghost].ghost.nextDirection = Phaser.RIGHT;
                     this.updateDirection(this.ghosts[ghost].ghost, true);
-                    console.log(GameScene.question.answers[this.ghosts[ghost].index]);
                     if (GameScene.question.answers[this.ghosts[ghost].index] === GameScene.question.correctAnswer) {
                         alert('correct');
-                        pacman.score += GameScene.question.getCorrectAnswerPoints();
+                        this.pacman.score += GameScene.question.getCorrectAnswerPoints();
                     } else {
                         alert('wrong');
-                        pacman.score -= GameScene.question.getWrongAnswerPoints();
+                        this.pacman.score -= GameScene.question.getWrongAnswerPoints();
                     }
                 } else {
-                    alert('game over');
-                    this.scene.restart();
+                    this.gameOver('lose');
+                    this.socket.emit('gameOver', '');
                 }
             }, null, this);
         }
@@ -352,18 +357,20 @@ export class GameScene extends Phaser.Scene {
             },
         };
 
+        this.gameStarted                 = false;
         this.textDistanceFromLeft        = 470;
         this.ghostHeight                 = 16;
         this.ghostWidth                  = 16;
         this.timeToEatAnswerDelay        = 30;
         this.timeToEatAnswerCounter      = 0;
         this.timeToEatAnswer             = 0;
-        this.ghostCheckDirectionsDelay   = 8;
+        this.ghostCheckDirectionsDelay   = 11;
         this.ghostCheckDirectionsCounter = 0;
         this.safeTile                    = 14;
         this.dotTile                     = 7;
         this.ghostHouseTile              = 83;
         this.speed                       = 100;
+        this.ghostSpeed                  = 70;
         this.pacmanSize                  = 12.5;
         this.ghostSize                   = 0.1;
         this.coinSize                    = 9;
@@ -371,28 +378,30 @@ export class GameScene extends Phaser.Scene {
         this.ghostThreshold              = 1.9;
         this.dotCount                    = 0;
         this.numTotalDots                = 272;
-        this.marker                      = new Phaser.Geom.Point();
 
     }
 
-    initPacman(pacmanName, playerName) {
-        this[pacmanName] = this.add.sprite((14 * 16) + 8, (17 * 16) + 8, 'pacman', 2);
-        this[pacmanName].playerName = playerName;
+    initPacman(pacmanName, playerName, context) {
+        context[pacmanName] = context.add.sprite(GameScene.indexToPixel(14), GameScene.indexToPixel(17), 'pacman', 2);
+        context[pacmanName].playerName = playerName;
 
+        context[pacmanName].marker = new Phaser.Geom.Point();
         /* set collision for all tiles besides dots and empty tiles */
-        this.layer.setCollisionByExclusion([this.safeTile,this.dotTile]);
+        context.layer.setCollisionByExclusion([context.safeTile,context.dotTile]);
 
         /* set collision between pacman and the layer */
-        this.physics.add.collider(this[pacmanName], this.layer);
+        context.physics.add.collider(context[pacmanName], context.layer);
 
-        this.physics.world.enable(this[pacmanName]);
-        this[pacmanName].body.setVelocityX(100);
-        this[pacmanName].body.setSize(this.pacmanSize,this.pacmanSize);
+        context.physics.world.enable(context[pacmanName]);
 
-        this[pacmanName].anims.play('moving');
-        this[pacmanName].direction     = Phaser.RIGHT;
-        this[pacmanName].nextDirection = Phaser.RIGHT;
-        this[pacmanName].score         = 0;
+        context[pacmanName].body.setVelocityX(100);
+
+        context[pacmanName].body.setSize(context.pacmanSize,context.pacmanSize);
+
+        context[pacmanName].anims.play('moving');
+        context[pacmanName].direction     = Phaser.RIGHT;
+        context[pacmanName].nextDirection = Phaser.RIGHT;
+        context[pacmanName].score         = 0;
     }
 
     getOppositeDirection(direction) {
@@ -427,31 +436,45 @@ export class GameScene extends Phaser.Scene {
         }
     }
 
+    gameOver(status) {
+        if (status === 'win') {
+            alert('you have won!');
+        } else {
+            alert('you have lost!');
+        }
+        this.scene.start(CST.SCENES.MENU);
+        this.scene.stop(CST.SCENES.GAME);
+    }
+
+    dotEaten(x, y) {
+        var tile = this.map.getTileAt(x, y, true);
+        this.dotCount++;
+        tile.index = this.safeTile;
+        if (this.dotCount === this.numTotalDots) {
+            this.gameOver('win');
+        }
+    }
+
     updatePacman(pacman) {
         const pacmanX = pacman.x;
         const pacmanY = pacman.y;
 
-        this.marker.x = this.map.worldToTileX(pacmanX);
-        this.marker.y = this.map.worldToTileY(pacmanY);
+        pacman.marker.x = this.map.worldToTileX(pacmanX);
+        pacman.marker.y = this.map.worldToTileY(pacmanY);
 
-        const pacmanInCenterOfSquare = (Math.abs(pacmanX - (this.marker.x*16+8)) < this.threshold) &&
-                                       (Math.abs(pacmanY - (this.marker.y*16+8)) < this.threshold);
+        const pacmanInCenterOfSquare = (Math.abs(pacmanX - GameScene.indexToPixel(pacman.marker.x)) < this.threshold) &&
+                                       (Math.abs(pacmanY - GameScene.indexToPixel(pacman.marker.y)) < this.threshold);
 
-        const pacmanCanTurn = this.canMoveInDirection(this.marker.x,
-                                                      this.marker.y,
+        const pacmanCanTurn = this.canMoveInDirection(pacman.marker.x,
+                                                      pacman.marker.y,
                                                       pacman.nextDirection);
 
-        this.currentTile = this.map.getTileAt(this.marker.x, this.marker.y, true);
+        pacman.currentTile = this.map.getTileAt(pacman.marker.x, pacman.marker.y, true);
 
-        if (this.currentTile.index === this.dotTile) {
-            this.dotCount++;
+        if (pacman.currentTile.index === this.dotTile) {
+            this.dotEaten(pacman.marker.x, pacman.marker.y);
             pacman.score++;
             this.updateScore(pacman);
-            this.currentTile.index = this.safeTile;
-
-            if (this.dotCount === this.numTotalDots) {
-                alert('you have won!');
-            }
         }
 
         if (pacman.nextDirection === pacman.direction && !pacmanCanTurn) {
@@ -461,7 +484,7 @@ export class GameScene extends Phaser.Scene {
             }
         } else {
             if (!pacman.anims.isPlaying) {
-                pacman.anims.play('moving');
+                 pacman.anims.play('moving');
             }
         }
         if (pacman.nextDirection !== pacman.direction && pacmanCanTurn && pacmanInCenterOfSquare) {
@@ -471,7 +494,7 @@ export class GameScene extends Phaser.Scene {
     }
 
     updateScore(pacman) {
-        pacman.scoreText.text = 'Score ' + pacman.playerName + ': ' + pacman.score;
+        // pacman.scoreText.text = 'Score ' + pacman.playerName + ': ' + pacman.score;
     }
 
     updateGhosts() {
@@ -482,12 +505,20 @@ export class GameScene extends Phaser.Scene {
             this.ghosts[ghost].currentTileX = this.map.worldToTileX(ghostX);
             this.ghosts[ghost].currentTileY = this.map.worldToTileY(ghostY);
 
-            const ghostInCenterOfSquare = (Math.abs(ghostX - (this.ghosts[ghost].currentTileX*16+8)) < this.ghostThreshold) &&
-                                          (Math.abs(ghostY - (this.ghosts[ghost].currentTileY*16+8)) < this.ghostThreshold);
+            const ghostInCenterOfSquare = (Math.abs(ghostX - GameScene.indexToPixel(this.ghosts[ghost].currentTileX)) < this.ghostThreshold) &&
+                                          (Math.abs(ghostY - GameScene.indexToPixel (this.ghosts[ghost].currentTileY)) < this.ghostThreshold);
 
             if (ghostInCenterOfSquare                                                                       &&
                               this.ghosts[ghost].ghost.nextDirection !== this.ghosts[ghost].ghost.direction &&
                               this.canMoveInDirection(this.ghosts[ghost].currentTileX, this.ghosts[ghost].currentTileY, this.ghosts[ghost].ghost.nextDirection)) {
+                if (this.multiplayer) {
+                    this.socket.emit('ghostTurn', {
+                        'ghost': ghost,
+                        'direction': this.ghosts[ghost].ghost.nextDirection,
+                        'x': this.ghosts[ghost].ghost.x,
+                        'y': this.ghosts[ghost].ghost.y,
+                    });
+                }
                 this.ghosts[ghost].ghost.direction = this.ghosts[ghost].ghost.nextDirection;
                 this.updateDirection(this.ghosts[ghost].ghost, true);
             }
@@ -515,13 +546,56 @@ export class GameScene extends Phaser.Scene {
                     this.ghosts[ghost].ghost.nextDirection = this.getOppositeDirection(this.ghosts[ghost].ghost.direction);
                 }
             }
-            this.ghostCheckDirectionsCounter=0;
+            this.ghostCheckDirectionsCounter = 0;
         }
         this.ghostCheckDirectionsCounter++;
     }
+
     static setQuestion(question, answers, correctAnswer, difficulty) {
         GameScene.question = new Question(question, answers, correctAnswer, difficulty);
         console.log('correct answer: ' + GameScene.question.correctAnswer);
+    }
+
+    manageSocket() {
+        var thisContext = this;
+        // this.socket.emit('updateName', {
+        //     'playerName' : this.playerName,
+        // });
+        this.socket.on('tooManyPlayers', function() {
+            alert('too many players..');
+            thisContext.scene.start(CST.SCENES.MENU);
+            thisContext.scene.stop(CST.SCENES.GAME);
+        });
+        this.socket.on('wait', function() {
+            /* i am the first player, wait for second */
+            thisContext.scene.pause();
+        });
+        this.socket.on('startGame', function(data) {
+            console.log('start game:', data);
+            /* second player has connected, game can start */
+            thisContext.masterOrSlave = data.masterOrSlave;
+            thisContext.scene.resume(CST.SCENES.GAME);
+            thisContext.initPacman('otherPacman', data.otherPlayerName, thisContext);
+            thisContext.gameStarted = true;
+        });
+        this.socket.on('dot', function(data) {
+            thisContext.dotEaten(data.x, data.y);
+        });
+        this.socket.on('candy', function(data) {
+            thisContext.candyEaten(data.spot, data.questionIndex);
+        });
+        this.socket.on('gameOver', function(data) {
+            thisContext.gameOver(data);
+        });
+        this.socket.on('updatePacmanNextDirection', function(nextDirection) {
+            thisContext.otherPacman.nextDirection = nextDirection;
+        });
+        this.socket.on('ghostTurn', function(data) {
+            thisContext.ghosts[data.ghost].ghost.direction = data.direction;
+            thisContext.ghosts[data.ghost].ghost.setX(data.x);
+            thisContext.ghosts[data.ghost].ghost.setY(data.y);
+            thisContext.updateDirection(thisContext.ghosts[data.ghost].ghost, true);
+        });
     }
 }
 

@@ -6,7 +6,7 @@ export class InputNamesScene extends Phaser.Scene {
         super({key: CST.SCENES.INPUT_NAMES})
     }
     init(multiplayer) {
-        this.multiplayer = multiplayer === true;
+        this.multiplayer = (multiplayer === true);
     }
     preload() {
         this.load.spritesheet('pacman', 'pacman.png', {frameWidth: 32, frameHeight: 32});
@@ -43,11 +43,15 @@ export class InputNamesScene extends Phaser.Scene {
         this.input.keyboard.on('keydown', function (eventName, event) {
             if (eventName.key === 'Enter') {
                 if (this.pacmanPointingAtPlayer === -1) {
-                    this.multiplayer = false;
                     this.scene.start(CST.SCENES.MENU);
                     this.scene.stop(CST.SCENES.INPUT_NAMES);
                 } else {
-                    this.scene.start(CST.SCENES.GAME, {'multiplayer' : this.multiplayer, 'namePlayer1' : this.namePlayer1, 'namePlayer2' : this.namePlayer2});
+                    this.scene.start(CST.SCENES.GAME,
+                        {
+                            'multiplayer' : this.multiplayer,
+                            'playerName'  : this.namePlayer1,
+                            'namePlayer2' : this.namePlayer2
+                        });
                 }
             }
             if (this.multiplayer) {

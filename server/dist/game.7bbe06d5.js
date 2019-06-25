@@ -538,6 +538,11 @@ function (_Phaser$Scene) {
   }
 
   _createClass(QuestionScene, [{
+    key: "init",
+    value: function init(questionIndex) {
+      this.questionIndex = questionIndex;
+    }
+  }, {
     key: "preload",
     value: function preload() {
       this.ghosts = ['blinky', 'inky', 'pinky', 'clyde'];
@@ -554,7 +559,6 @@ function (_Phaser$Scene) {
   }, {
     key: "create",
     value: function create() {
-      this.questionIndex = this.randInt(0, _Questions.QUESTIONS.length);
       this.textStyle = {
         fontFamily: '"Roboto Condensed"',
         fontSize: 30,
@@ -691,11 +695,7 @@ function (_Phaser$Scene) {
     key: "init",
     value: function init(config) {
       this.multiplayer = config.multiplayer === true;
-      this.namePlayer1 = config.namePlayer1;
-
-      if (this.multiplayer) {
-        this.namePlayer2 = config.namePlayer2;
-      }
+      this.playerName = config.playerName;
     }
   }, {
     key: "preload",
@@ -724,6 +724,11 @@ function (_Phaser$Scene) {
   }, {
     key: "create",
     value: function create() {
+      if (this.multiplayer) {
+        this.socket = io.connect('http://localhost:1235');
+        this.manageSocket();
+      }
+
       this.map = this.make.tilemap({
         key: 'map'
       });
@@ -745,25 +750,25 @@ function (_Phaser$Scene) {
         frameRate: 10,
         repeat: 1
       });
-      this.initPacman('pacman1', this.namePlayer1);
-      this.pacman1.scoreText = this.add.text(this.textDistanceFromLeft, 440, '', this.textStyle);
-      this.updateScore(this.pacman1);
+      this.initPacman('pacman', this.playerName, this);
+      this.pacman.scoreText = this.add.text(this.textDistanceFromLeft, 440, '', this.textStyle);
+      this.updateScore(this.pacman);
       this.input.keyboard.on('keydown', function (eventName, event) {
         switch (eventName.key) {
           case 'ArrowDown':
-            this.pacman1.nextDirection = Phaser.DOWN;
+            this.pacman.nextDirection = Phaser.DOWN;
             break;
 
           case 'ArrowUp':
-            this.pacman1.nextDirection = Phaser.UP;
+            this.pacman.nextDirection = Phaser.UP;
             break;
 
           case 'ArrowLeft':
-            this.pacman1.nextDirection = Phaser.LEFT;
+            this.pacman.nextDirection = Phaser.LEFT;
             break;
 
           case 'ArrowRight':
-            this.pacman1.nextDirection = Phaser.RIGHT;
+            this.pacman.nextDirection = Phaser.RIGHT;
             break;
 
           default:
@@ -771,45 +776,25 @@ function (_Phaser$Scene) {
         }
 
         if (this.multiplayer) {
-          switch (eventName.key) {
-            case 'h':
-              this.pacman2.nextDirection = Phaser.LEFT;
-              break;
-
-            case 'l':
-              this.pacman2.nextDirection = Phaser.RIGHT;
-              break;
-
-            case 'j':
-              this.pacman2.nextDirection = Phaser.DOWN;
-              break;
-
-            case 'k':
-              this.pacman2.nextDirection = Phaser.UP;
-              break;
-
-            default:
-              console.log('invalid button pressed: ' + eventName.key);
-          }
+          this.socket.emit('updatePacmanNextDirection', this.pacman.nextDirection);
         }
       }, this);
-      this.addCoins();
-      this.addGhosts();
-      this.addCoinsCollideAction(this.pacman1);
-      this.addGhostsCollideAction(this.pacman1);
 
-      if (this.multiplayer) {
-        this.initPacman('pacman2', this.namePlayer2);
-        this.pacman2.scoreText = this.add.text(this.textDistanceFromLeft + 200, 440, '', this.textStyle);
-        this.updateScore(this.pacman2);
-        this.addCoinsCollideAction(this.pacman2);
-        this.addGhostsCollideAction(this.pacman2);
+      if (!this.multiplayer) {
+        this.gameStarted = true;
       }
+
+      this.addGhosts(this); // this.addGhostsCollideAction();
+
+      this.addCoins();
+      this.addCoinsCollideAction();
     }
   }, {
     key: "update",
     value: function update() {
+      if (!this.gameStarted) return;
       /* if game is in "candy eaten" time */
+
       if (this.timeToEatAnswer && ++this.timeToEatAnswerCounter === this.timeToEatAnswerDelay) {
         if (--this.timeToEatAnswer === 0) {
           this.scene.stop(_CST.CST.SCENES.QUESTION);
@@ -818,13 +803,15 @@ function (_Phaser$Scene) {
         this.timeToEatAnswerCounter = 0;
       }
 
-      this.updatePacman(this.pacman1);
+      this.updatePacman(this.pacman);
 
       if (this.multiplayer) {
-        this.updatePacman(this.pacman2);
+        this.updatePacman(this.otherPacman);
       }
 
-      this.updateGhosts();
+      if (!this.multiplayer || this.masterOrSlave === 'master') {
+        this.updateGhosts();
+      }
     }
   }, {
     key: "canMoveInDirection",
@@ -869,7 +856,7 @@ function (_Phaser$Scene) {
             gameObject.angle = 180;
           }
 
-          gameObject.body.setVelocityX(-this.speed);
+          gameObject.body.setVelocityX(isGhost ? -this.ghostSpeed : -this.speed);
           gameObject.body.setVelocityY(0);
           break;
 
@@ -883,7 +870,7 @@ function (_Phaser$Scene) {
             gameObject.angle = 0;
           }
 
-          gameObject.body.setVelocityX(this.speed);
+          gameObject.body.setVelocityX(isGhost ? this.ghostSpeed : this.speed);
           gameObject.body.setVelocityY(0);
           break;
 
@@ -898,7 +885,7 @@ function (_Phaser$Scene) {
           }
 
           gameObject.body.setVelocityX(0);
-          gameObject.body.setVelocityY(-this.speed);
+          gameObject.body.setVelocityY(isGhost ? -this.ghostSpeed : -this.speed);
           break;
 
         case Phaser.DOWN:
@@ -912,7 +899,7 @@ function (_Phaser$Scene) {
           }
 
           gameObject.body.setVelocityX(0);
-          gameObject.body.setVelocityY(this.speed);
+          gameObject.body.setVelocityY(isGhost ? this.ghostSpeed : this.speed);
           break;
 
         default:
@@ -932,7 +919,7 @@ function (_Phaser$Scene) {
       });
 
       for (var spot in this.coins) {
-        this.coins[spot]['coin'] = this.add.sprite(this.coins[spot].x * 16 + 8, this.coins[spot].y * 16 + 8, 'coin', 0);
+        this.coins[spot]['coin'] = this.add.sprite(GameScene.indexToPixel(this.coins[spot].x), GameScene.indexToPixel(this.coins[spot].y), 'coin', 0);
         this.physics.world.enable(this.coins[spot].coin);
         this.coins[spot]['coin'].setScale(0.5);
         this.coins[spot]['coin'].body.setSize(this.coinSize, this.coinSize);
@@ -940,23 +927,42 @@ function (_Phaser$Scene) {
       }
     }
   }, {
+    key: "iAteCandy",
+    value: function iAteCandy(spot) {
+      var questionIndex = this.randInt(0, _Questions.QUESTIONS.length);
+
+      if (this.multiplayer) {
+        this.socket.emit('candy', {
+          'questionIndex': questionIndex,
+          'spot': spot
+        });
+      }
+
+      this.candyEaten(spot, questionIndex);
+    }
+  }, {
+    key: "candyEaten",
+    value: function candyEaten(spot, questionIndex) {
+      this.coins[spot].coin.destroy();
+      this.scene.launch(_CST.CST.SCENES.QUESTION, questionIndex);
+      this.scene.pause();
+      this.timeToEatAnswer = 14;
+
+      for (var ghost in this.ghosts) {
+        this.ghosts[ghost].ghost.anims.stop();
+        this.ghosts[ghost].ghost.anims.play(ghost + 'Blue');
+      }
+
+      this.updateDirection(this.pacman, false);
+    }
+  }, {
     key: "addCoinsCollideAction",
-    value: function addCoinsCollideAction(pacman) {
+    value: function addCoinsCollideAction() {
       var _this = this;
 
       var _loop = function _loop(spot) {
-        _this.physics.add.collider(pacman, _this.coins[spot].coin, function () {
-          this.coins[spot].coin.destroy();
-          this.scene.launch(_CST.CST.SCENES.QUESTION);
-          this.scene.pause();
-          this.timeToEatAnswer = 14;
-
-          for (var ghost in this.ghosts) {
-            this.ghosts[ghost].ghost.anims.stop();
-            this.ghosts[ghost].ghost.anims.play(ghost + 'Blue');
-          }
-
-          this.updateDirection(pacman, false);
+        _this.physics.add.collider(_this.pacman, _this.coins[spot].coin, function () {
+          this.iAteCandy(spot);
         }, null, _this);
       };
 
@@ -966,76 +972,75 @@ function (_Phaser$Scene) {
     }
   }, {
     key: "addGhosts",
-    value: function addGhosts() {
+    value: function addGhosts(context) {
       for (var ghost in this.ghosts) {
-        console.log(ghost + 'Right');
-        this.anims.create({
+        context.anims.create({
           key: ghost + 'Right',
-          frames: this.anims.generateFrameNumbers(ghost, {
+          frames: context.anims.generateFrameNumbers(ghost, {
             frames: [0, 1]
           }),
           frameRate: 10,
           repeat: -1
         });
-        this.anims.create({
+        context.anims.create({
           key: ghost + 'Left',
-          frames: this.anims.generateFrameNumbers(ghost, {
+          frames: context.anims.generateFrameNumbers(ghost, {
             frames: [2, 3]
           }),
           frameRate: 10,
           repeat: -1
         });
-        this.anims.create({
+        context.anims.create({
           key: ghost + 'Up',
-          frames: this.anims.generateFrameNumbers(ghost, {
+          frames: context.anims.generateFrameNumbers(ghost, {
             frames: [4, 5]
           }),
           frameRate: 10,
           repeat: -1
         });
-        this.anims.create({
+        context.anims.create({
           key: ghost + 'Down',
-          frames: this.anims.generateFrameNumbers(ghost, {
+          frames: context.anims.generateFrameNumbers(ghost, {
             frames: [6, 7]
           }),
           frameRate: 10,
           repeat: -1
         });
-        this.anims.create({
+        context.anims.create({
           key: ghost + 'Blue',
-          frames: this.anims.generateFrameNumbers(ghost, {
+          frames: context.anims.generateFrameNumbers(ghost, {
             frames: [8, 9, 0, 1]
           }),
           frameRate: 10,
           repeat: -1
         });
-        this.anims.create({
+        context.anims.create({
           key: ghost + 'Eaten',
-          frames: this.anims.generateFrameNumbers(ghost, {
+          frames: context.anims.generateFrameNumbers(ghost, {
             frames: [10, 11, 12, 13, 14, 15]
           }),
           frameRate: 10,
           repeat: -1
         });
-        this.ghosts[ghost].ghost = this.add.sprite(GameScene.indexToPixel(this.ghosts[ghost].startX), GameScene.indexToPixel(this.ghosts[ghost].startY), ghost, 0);
-        this.ghosts[ghost].ghost.name = ghost;
-        this.ghosts[ghost].ghost.setScale(1.5);
-        this.ghosts[ghost].ghost.anims.play(ghost + 'Right');
-        this.ghosts[ghost].ghost.direction = Phaser.RIGHT;
-        this.ghosts[ghost].ghost.nextDirection = Phaser.RIGHT;
-        this.physics.add.collider(this.ghosts[ghost].ghost, this.layer);
-        this.physics.world.enable(this.ghosts[ghost].ghost);
-        this.ghosts[ghost].ghost.body.setSize(this.ghostSize, this.ghostSize);
-        this.ghosts[ghost].ghost.body.setVelocityX(100);
+        context.ghosts[ghost].ghost = context.add.sprite(GameScene.indexToPixel(context.ghosts[ghost].startX), GameScene.indexToPixel(context.ghosts[ghost].startY), ghost, 0);
+        context.ghosts[ghost].ghost.name = ghost;
+        context.ghosts[ghost].ghost.setScale(1.5);
+        context.ghosts[ghost].ghost.anims.play(ghost + 'Right');
+        context.ghosts[ghost].ghost.direction = Phaser.RIGHT;
+        context.ghosts[ghost].ghost.nextDirection = Phaser.RIGHT;
+        context.physics.add.collider(context.ghosts[ghost].ghost, context.layer);
+        context.physics.world.enable(context.ghosts[ghost].ghost);
+        context.ghosts[ghost].ghost.body.setSize(context.ghostSize, context.ghostSize);
+        context.ghosts[ghost].ghost.body.setVelocityX(context.ghostSpeed);
       }
     }
   }, {
     key: "addGhostsCollideAction",
-    value: function addGhostsCollideAction(pacman) {
+    value: function addGhostsCollideAction() {
       var _this2 = this;
 
       var _loop2 = function _loop2(ghost) {
-        _this2.physics.add.overlap(pacman, _this2.ghosts[ghost].ghost, function () {
+        _this2.physics.add.overlap(_this2.pacman, _this2.ghosts[ghost].ghost, function () {
           if (this.timeToEatAnswer) {
             this.ghosts[ghost].ghost.setX(GameScene.indexToPixel(this.ghosts[ghost].startX));
             this.ghosts[ghost].ghost.setY(GameScene.indexToPixel(this.ghosts[ghost].startY));
@@ -1043,18 +1048,17 @@ function (_Phaser$Scene) {
             this.ghosts[ghost].ghost.direction = Phaser.RIGHT;
             this.ghosts[ghost].ghost.nextDirection = Phaser.RIGHT;
             this.updateDirection(this.ghosts[ghost].ghost, true);
-            console.log(GameScene.question.answers[this.ghosts[ghost].index]);
 
             if (GameScene.question.answers[this.ghosts[ghost].index] === GameScene.question.correctAnswer) {
               alert('correct');
-              pacman.score += GameScene.question.getCorrectAnswerPoints();
+              this.pacman.score += GameScene.question.getCorrectAnswerPoints();
             } else {
               alert('wrong');
-              pacman.score -= GameScene.question.getWrongAnswerPoints();
+              this.pacman.score -= GameScene.question.getWrongAnswerPoints();
             }
           } else {
-            alert('game over');
-            this.scene.restart();
+            this.gameOver('lose');
+            this.socket.emit('gameOver', '');
           }
         }, null, _this2);
       };
@@ -1121,18 +1125,20 @@ function (_Phaser$Scene) {
           direction: Phaser.LEFT
         }
       };
+      this.gameStarted = false;
       this.textDistanceFromLeft = 470;
       this.ghostHeight = 16;
       this.ghostWidth = 16;
       this.timeToEatAnswerDelay = 30;
       this.timeToEatAnswerCounter = 0;
       this.timeToEatAnswer = 0;
-      this.ghostCheckDirectionsDelay = 8;
+      this.ghostCheckDirectionsDelay = 11;
       this.ghostCheckDirectionsCounter = 0;
       this.safeTile = 14;
       this.dotTile = 7;
       this.ghostHouseTile = 83;
       this.speed = 100;
+      this.ghostSpeed = 70;
       this.pacmanSize = 12.5;
       this.ghostSize = 0.1;
       this.coinSize = 9;
@@ -1140,26 +1146,26 @@ function (_Phaser$Scene) {
       this.ghostThreshold = 1.9;
       this.dotCount = 0;
       this.numTotalDots = 272;
-      this.marker = new Phaser.Geom.Point();
     }
   }, {
     key: "initPacman",
-    value: function initPacman(pacmanName, playerName) {
-      this[pacmanName] = this.add.sprite(14 * 16 + 8, 17 * 16 + 8, 'pacman', 2);
-      this[pacmanName].playerName = playerName;
+    value: function initPacman(pacmanName, playerName, context) {
+      context[pacmanName] = context.add.sprite(GameScene.indexToPixel(14), GameScene.indexToPixel(17), 'pacman', 2);
+      context[pacmanName].playerName = playerName;
+      context[pacmanName].marker = new Phaser.Geom.Point();
       /* set collision for all tiles besides dots and empty tiles */
 
-      this.layer.setCollisionByExclusion([this.safeTile, this.dotTile]);
+      context.layer.setCollisionByExclusion([context.safeTile, context.dotTile]);
       /* set collision between pacman and the layer */
 
-      this.physics.add.collider(this[pacmanName], this.layer);
-      this.physics.world.enable(this[pacmanName]);
-      this[pacmanName].body.setVelocityX(100);
-      this[pacmanName].body.setSize(this.pacmanSize, this.pacmanSize);
-      this[pacmanName].anims.play('moving');
-      this[pacmanName].direction = Phaser.RIGHT;
-      this[pacmanName].nextDirection = Phaser.RIGHT;
-      this[pacmanName].score = 0;
+      context.physics.add.collider(context[pacmanName], context.layer);
+      context.physics.world.enable(context[pacmanName]);
+      context[pacmanName].body.setVelocityX(100);
+      context[pacmanName].body.setSize(context.pacmanSize, context.pacmanSize);
+      context[pacmanName].anims.play('moving');
+      context[pacmanName].direction = Phaser.RIGHT;
+      context[pacmanName].nextDirection = Phaser.RIGHT;
+      context[pacmanName].score = 0;
     }
   }, {
     key: "getOppositeDirection",
@@ -1204,25 +1210,43 @@ function (_Phaser$Scene) {
       }
     }
   }, {
+    key: "gameOver",
+    value: function gameOver(status) {
+      if (status === 'win') {
+        alert('you have won!');
+      } else {
+        alert('you have lost!');
+      }
+
+      this.scene.start(_CST.CST.SCENES.MENU);
+      this.scene.stop(_CST.CST.SCENES.GAME);
+    }
+  }, {
+    key: "dotEaten",
+    value: function dotEaten(x, y) {
+      var tile = this.map.getTileAt(x, y, true);
+      this.dotCount++;
+      tile.index = this.safeTile;
+
+      if (this.dotCount === this.numTotalDots) {
+        this.gameOver('win');
+      }
+    }
+  }, {
     key: "updatePacman",
     value: function updatePacman(pacman) {
       var pacmanX = pacman.x;
       var pacmanY = pacman.y;
-      this.marker.x = this.map.worldToTileX(pacmanX);
-      this.marker.y = this.map.worldToTileY(pacmanY);
-      var pacmanInCenterOfSquare = Math.abs(pacmanX - (this.marker.x * 16 + 8)) < this.threshold && Math.abs(pacmanY - (this.marker.y * 16 + 8)) < this.threshold;
-      var pacmanCanTurn = this.canMoveInDirection(this.marker.x, this.marker.y, pacman.nextDirection);
-      this.currentTile = this.map.getTileAt(this.marker.x, this.marker.y, true);
+      pacman.marker.x = this.map.worldToTileX(pacmanX);
+      pacman.marker.y = this.map.worldToTileY(pacmanY);
+      var pacmanInCenterOfSquare = Math.abs(pacmanX - GameScene.indexToPixel(pacman.marker.x)) < this.threshold && Math.abs(pacmanY - GameScene.indexToPixel(pacman.marker.y)) < this.threshold;
+      var pacmanCanTurn = this.canMoveInDirection(pacman.marker.x, pacman.marker.y, pacman.nextDirection);
+      pacman.currentTile = this.map.getTileAt(pacman.marker.x, pacman.marker.y, true);
 
-      if (this.currentTile.index === this.dotTile) {
-        this.dotCount++;
+      if (pacman.currentTile.index === this.dotTile) {
+        this.dotEaten(pacman.marker.x, pacman.marker.y);
         pacman.score++;
         this.updateScore(pacman);
-        this.currentTile.index = this.safeTile;
-
-        if (this.dotCount === this.numTotalDots) {
-          alert('you have won!');
-        }
       }
 
       if (pacman.nextDirection === pacman.direction && !pacmanCanTurn) {
@@ -1243,8 +1267,7 @@ function (_Phaser$Scene) {
     }
   }, {
     key: "updateScore",
-    value: function updateScore(pacman) {
-      pacman.scoreText.text = 'Score ' + pacman.playerName + ': ' + pacman.score;
+    value: function updateScore(pacman) {// pacman.scoreText.text = 'Score ' + pacman.playerName + ': ' + pacman.score;
     }
   }, {
     key: "updateGhosts",
@@ -1256,9 +1279,18 @@ function (_Phaser$Scene) {
         var ghostY = this.ghosts[ghost].ghost.y;
         this.ghosts[ghost].currentTileX = this.map.worldToTileX(ghostX);
         this.ghosts[ghost].currentTileY = this.map.worldToTileY(ghostY);
-        var ghostInCenterOfSquare = Math.abs(ghostX - (this.ghosts[ghost].currentTileX * 16 + 8)) < this.ghostThreshold && Math.abs(ghostY - (this.ghosts[ghost].currentTileY * 16 + 8)) < this.ghostThreshold;
+        var ghostInCenterOfSquare = Math.abs(ghostX - GameScene.indexToPixel(this.ghosts[ghost].currentTileX)) < this.ghostThreshold && Math.abs(ghostY - GameScene.indexToPixel(this.ghosts[ghost].currentTileY)) < this.ghostThreshold;
 
         if (ghostInCenterOfSquare && this.ghosts[ghost].ghost.nextDirection !== this.ghosts[ghost].ghost.direction && this.canMoveInDirection(this.ghosts[ghost].currentTileX, this.ghosts[ghost].currentTileY, this.ghosts[ghost].ghost.nextDirection)) {
+          if (this.multiplayer) {
+            this.socket.emit('ghostTurn', {
+              'ghost': ghost,
+              'direction': this.ghosts[ghost].ghost.nextDirection,
+              'x': this.ghosts[ghost].ghost.x,
+              'y': this.ghosts[ghost].ghost.y
+            });
+          }
+
           this.ghosts[ghost].ghost.direction = this.ghosts[ghost].ghost.nextDirection;
           this.updateDirection(this.ghosts[ghost].ghost, true);
         }
@@ -1298,6 +1330,50 @@ function (_Phaser$Scene) {
       }
 
       this.ghostCheckDirectionsCounter++;
+    }
+  }, {
+    key: "manageSocket",
+    value: function manageSocket() {
+      var thisContext = this; // this.socket.emit('updateName', {
+      //     'playerName' : this.playerName,
+      // });
+
+      this.socket.on('tooManyPlayers', function () {
+        alert('too many players..');
+        thisContext.scene.start(_CST.CST.SCENES.MENU);
+        thisContext.scene.stop(_CST.CST.SCENES.GAME);
+      });
+      this.socket.on('wait', function () {
+        /* i am the first player, wait for second */
+        thisContext.scene.pause();
+      });
+      this.socket.on('startGame', function (data) {
+        console.log('start game:', data);
+        /* second player has connected, game can start */
+
+        thisContext.masterOrSlave = data.masterOrSlave;
+        thisContext.scene.resume(_CST.CST.SCENES.GAME);
+        thisContext.initPacman('otherPacman', data.otherPlayerName, thisContext);
+        thisContext.gameStarted = true;
+      });
+      this.socket.on('dot', function (data) {
+        thisContext.dotEaten(data.x, data.y);
+      });
+      this.socket.on('candy', function (data) {
+        thisContext.candyEaten(data.spot, data.questionIndex);
+      });
+      this.socket.on('gameOver', function (data) {
+        thisContext.gameOver(data);
+      });
+      this.socket.on('updatePacmanNextDirection', function (nextDirection) {
+        thisContext.otherPacman.nextDirection = nextDirection;
+      });
+      this.socket.on('ghostTurn', function (data) {
+        thisContext.ghosts[data.ghost].ghost.direction = data.direction;
+        thisContext.ghosts[data.ghost].ghost.setX(data.x);
+        thisContext.ghosts[data.ghost].ghost.setY(data.y);
+        thisContext.updateDirection(thisContext.ghosts[data.ghost].ghost, true);
+      });
     }
   }], [{
     key: "indexToPixel",
@@ -1415,11 +1491,15 @@ function (_Phaser$Scene) {
         fontSize: 50,
         color: "blue"
       };
+      /* add menu options to screen */
+
       this.add.text(this.distanceFromLeft, 60, 'MENU', this.textStyle);
       this.add.text(this.distanceFromLeft, this.distanceFromTop, 'single player', this.textStyle);
       this.add.text(this.distanceFromLeft, this.distanceFromTop + this.textHeight, 'multi player', this.textStyle);
       this.add.text(this.distanceFromLeft, this.distanceFromTop + 2 * this.textHeight, 'score board', this.textStyle);
       this.add.text(this.distanceFromLeft, this.distanceFromTop + 3 * this.textHeight, 'manage questions', this.textStyle);
+      /* add the moving pacman */
+
       this.pacman = this.add.sprite(this.distanceFromLeft - 30, this.distanceFromTop + 28, 'pacman', 2);
       this.anims.create({
         key: 'moving',
@@ -1429,8 +1509,8 @@ function (_Phaser$Scene) {
         frameRate: 16,
         repeat: -1
       });
-      this.pacman.setScale(1.5);
       this.pacman.anims.play('moving');
+      this.pacman.setScale(1.5);
       this.input.keyboard.on('keydown', function (eventName, event) {
         switch (eventName.key) {
           case 'ArrowDown':
@@ -1574,13 +1654,12 @@ function (_Phaser$Scene) {
       this.input.keyboard.on('keydown', function (eventName, event) {
         if (eventName.key === 'Enter') {
           if (this.pacmanPointingAtPlayer === -1) {
-            this.multiplayer = false;
             this.scene.start(_CST.CST.SCENES.MENU);
             this.scene.stop(_CST.CST.SCENES.INPUT_NAMES);
           } else {
             this.scene.start(_CST.CST.SCENES.GAME, {
               'multiplayer': this.multiplayer,
-              'namePlayer1': this.namePlayer1,
+              'playerName': this.namePlayer1,
               'namePlayer2': this.namePlayer2
             });
           }
@@ -1735,7 +1814,7 @@ var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var hostname = "" || location.hostname;
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-  var ws = new WebSocket(protocol + '://' + hostname + ':' + "42123" + '/');
+  var ws = new WebSocket(protocol + '://' + hostname + ':' + "45733" + '/');
 
   ws.onmessage = function (event) {
     checkedAssets = {};

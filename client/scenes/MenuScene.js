@@ -22,21 +22,26 @@ export class MenuScene extends Phaser.Scene {
             fontSize : 50,
             color : "blue",
         };
+        /* add menu options to screen */
         this.add.text(this.distanceFromLeft, 60, 'MENU' , this.textStyle);
         this.add.text(this.distanceFromLeft, this.distanceFromTop, 'single player' , this.textStyle);
         this.add.text(this.distanceFromLeft, this.distanceFromTop + this.textHeight, 'multi player' , this.textStyle);
         this.add.text(this.distanceFromLeft, this.distanceFromTop + 2*this.textHeight, 'score board' , this.textStyle);
         this.add.text(this.distanceFromLeft, this.distanceFromTop + 3*this.textHeight, 'manage questions' , this.textStyle);
 
+        /* add the moving pacman */
         this.pacman = this.add.sprite(this.distanceFromLeft - 30, this.distanceFromTop + 28, 'pacman', 2);
+
         this.anims.create({
             key: 'moving',
             frames: this.anims.generateFrameNumbers('pacman', { frames: [2, 1, 0, 1]}),
             frameRate: 16,
             repeat: -1
         });
-        this.pacman.setScale(1.5);
+
         this.pacman.anims.play('moving');
+
+        this.pacman.setScale(1.5);
 
         this.input.keyboard.on('keydown', function (eventName, event) {
             switch (eventName.key) {
