@@ -79,6 +79,7 @@ export class GameScene extends Phaser.Scene {
 
     update() {
         if (!this.gameStarted) return;
+
         /* if game is in "candy eaten" time */
         if (this.timeToEatAnswer && ++this.timeToEatAnswerCounter === this.timeToEatAnswerDelay) {
             if (--this.timeToEatAnswer === 0) {
