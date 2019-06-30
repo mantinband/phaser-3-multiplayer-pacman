@@ -1557,8 +1557,7 @@ function (_Phaser$Scene) {
       this.add.text(this.distanceFromLeft - 10, 40, 'MENU', this.titleStyle);
       this.add.text(this.distanceFromLeft, this.distanceFromTop, 'single player', this.textStyle);
       this.add.text(this.distanceFromLeft, this.distanceFromTop + this.textHeight, 'multi player', this.textStyle);
-      this.add.text(this.distanceFromLeft, this.distanceFromTop + 2 * this.textHeight, 'score board', this.textStyle);
-      this.add.text(this.distanceFromLeft, this.distanceFromTop + 3 * this.textHeight, 'manage questions', this.textStyle);
+      this.add.text(this.distanceFromLeft, this.distanceFromTop + 2 * this.textHeight, 'add questions', this.textStyle);
       /* add the moving pacman */
 
       this.pacman = this.add.sprite(this.distanceFromLeft - 30, this.distanceFromTop + 28, 'pacman', 2);
@@ -2037,7 +2036,7 @@ var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var hostname = "" || location.hostname;
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-  var ws = new WebSocket(protocol + '://' + hostname + ':' + "32991" + '/');
+  var ws = new WebSocket(protocol + '://' + hostname + ':' + "33109" + '/');
 
   ws.onmessage = function (event) {
     checkedAssets = {};
