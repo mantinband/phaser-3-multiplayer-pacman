@@ -21,6 +21,10 @@ export class GameScene extends Phaser.Scene {
         this.load.image('tiles', 'pacman-tiles.png');
         this.load.spritesheet('pacman', 'pacman.png', {frameWidth: 32, frameHeight: 32});
         this.load.spritesheet('coin', 'coin.png', {frameWidth: 44, frameHeight: 40});
+        this.load.audio('startMusic', ['start.mp3']);
+        this.load.audio('eatDotMusic', ['chomp.mp3']);
+        this.load.audio('questionMusic', ['question.mp3']);
+        this.load.audio('eatGhostMusic', ['eatghost.mp3']);
 
         for (let ghost in this.ghosts) {
             this.load.spritesheet(ghost, ghost + '.png', {frameWidth: this.ghostWidth, frameHeight: this.ghostHeight});
@@ -33,6 +37,11 @@ export class GameScene extends Phaser.Scene {
             this.socket = io.connect('http://localhost:1235');
             this.manageSocket();
         }
+        this.startMusic = this.sound.add('startMusic');
+        this.eatDotMusic = this.sound.add('eatDotMusic');
+        this.questionMusic = this.sound.add('questionMusic');
+        this.eatGhostMusic = this.sound.add('eatGhostMusic');
+
         this.map = this.make.tilemap({key:'map'});
         const tileset = this.map.addTilesetImage('pacman-tiles', 'tiles');
         this.layer = this.map.createDynamicLayer('Pacman', tileset);
@@ -74,6 +83,7 @@ export class GameScene extends Phaser.Scene {
         if (!this.multiplayer) {
             this.drawLives();
             this.gameStarted = true;
+            this.startMusic.play();
         }
     }
 
@@ -210,6 +220,7 @@ export class GameScene extends Phaser.Scene {
             this.ghosts[ghost].ghost.anims.stop();
             this.ghosts[ghost].ghost.anims.play(ghost + 'Blue');
         }
+        this.questionMusic.play();
         this.updateDirection(this.pacman, false);
     }
 
@@ -280,6 +291,7 @@ export class GameScene extends Phaser.Scene {
         for (let ghost in this.ghosts) {
             this.physics.add.overlap(this.pacman, this.ghosts[ghost].ghost, function () {
                 if (this.timeToEatAnswer) {
+                    this.eatGhostMusic.play();
                     this.ghosts[ghost].ghost.setX(GameScene.indexToPixel(this.ghosts[ghost].startX));
                     this.ghosts[ghost].ghost.setY(GameScene.indexToPixel(this.ghosts[ghost].startY));
                     this.ghosts[ghost].ghost.anims.play(ghost + 'Right');
@@ -303,8 +315,9 @@ export class GameScene extends Phaser.Scene {
                         }
                         this.scene.restart();
                         /* commented for debug */
-                        // this.gameOver('lose');
-                        // this.socket.emit('gameOver', '');
+                    } else {
+                        this.gameOver('lose');
+                        this.socket.emit('gameOver', '');
                     }
                 }
             }, null, this);
@@ -504,6 +517,7 @@ export class GameScene extends Phaser.Scene {
         if (pacman.currentTile.index === this.dotTile) {
             this.dotEaten(pacman.marker.x, pacman.marker.y);
             pacman.score++;
+            this.eatDotMusic.play();
             this.updateScore(pacman);
         }
 
@@ -603,6 +617,7 @@ export class GameScene extends Phaser.Scene {
             thisContext.scene.resume(CST.SCENES.GAME);
             thisContext.initPacman('otherPacman', 'other player', thisContext);
             thisContext.gameStarted = true;
+            thisContext.startMusic.play();
         });
         this.socket.on('dot', function(data) {
             thisContext.dotEaten(data.x, data.y);
